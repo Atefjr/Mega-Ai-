@@ -5,6 +5,7 @@ import { fmtMoney, fmtSignedMoney, fmtPct, fmtPrice, fmtDate, signClass, positio
 import StatusBadge from '../components/StatusBadge.jsx';
 import HalalBadge from '../components/HalalBadge.jsx';
 import InvestModal from '../components/InvestModal.jsx';
+import CloseTradeModal from '../components/CloseTradeModal.jsx';
 import { ErrorBanner, Empty, Skeletons } from '../components/States.jsx';
 
 export default function LiveTrades() {
@@ -22,6 +23,8 @@ export default function LiveTrades() {
   const [modalInitial, setModalInitial] = useState({});
   const [evaluating, setEvaluating] = useState(false);
   const [evaluatingId, setEvaluatingId] = useState(null);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [closeTarget, setCloseTarget] = useState(null);
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -150,16 +153,21 @@ export default function LiveTrades() {
     }
   }
 
-  async function handleClose(trade) {
-    const ok = window.confirm(`Close ${trade.ticker} at the current live price and move it to History?`);
-    if (!ok) return;
-    setClosingId(trade.id);
+  function handleClose(trade) {
+    setCloseTarget(trade);
+    setCloseOpen(true);
+  }
+
+  async function doClose(price) {
+    if (!closeTarget) return;
+    setClosingId(closeTarget.id);
     try {
-      await api.closeTrade(trade.id);
+      await api.closeTrade(closeTarget.id, price);
+      setCloseOpen(false);
       navigate('/history');
     } catch (err) {
-      setError(err);
       setClosingId(null);
+      throw err; // surfaced by the modal
     }
   }
 
@@ -180,6 +188,7 @@ export default function LiveTrades() {
         </div>
         {!loading && trades.length > 0 && (
           <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" onClick={() => { setModalInitial({}); setModalOpen(true); }}>+ New trade</button>
             <button className="btn" onClick={evaluateAll} disabled={evaluating} title="Re-score every thesis with Claude">
               {evaluating ? <span className="spinner" style={{ borderTopColor: 'var(--accent)' }} /> : '✦'} Evaluate theses
             </button>
@@ -309,6 +318,14 @@ export default function LiveTrades() {
         theses={theses}
         initial={modalInitial}
         title={modalInitial.ticker ? `Buy more — ${modalInitial.ticker}` : 'New position'}
+      />
+
+      <CloseTradeModal
+        open={closeOpen}
+        onClose={() => setCloseOpen(false)}
+        onSubmit={doClose}
+        trade={closeTarget}
+        defaultPrice={closeTarget ? quotes[closeTarget.ticker]?.current : null}
       />
     </div>
   );

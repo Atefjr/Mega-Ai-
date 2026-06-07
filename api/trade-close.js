@@ -19,14 +19,18 @@ export default async function handler(req, res) {
     if (loadErr) throw loadErr;
     if (!trade) return sendJson(res, 404, { error: 'Trade not found' });
 
-    // Exit price = current live price (fetched server-side, not trusted from client).
-    const quote = await getQuote(trade.ticker);
-    let exitPrice = quote.current;
+    // Exit price: prefer the price the user enters; fall back to the live quote.
+    let exitPrice = Number(req.body?.exit_price);
     if (!(exitPrice > 0)) {
-      // Fall back to client-provided price only if the live quote is unavailable.
-      const fallback = Number(req.body?.exit_price);
-      if (fallback > 0) exitPrice = fallback;
-      else return sendJson(res, 502, { error: 'Could not get a live price to close at.' });
+      try {
+        const quote = await getQuote(trade.ticker);
+        exitPrice = quote.current;
+      } catch {
+        exitPrice = null;
+      }
+    }
+    if (!(exitPrice > 0)) {
+      return sendJson(res, 502, { error: 'No close price provided and no live price available. Enter a close price.' });
     }
 
     const amount = Number(trade.amount_invested);

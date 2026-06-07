@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { fmtMoney, fmtSignedMoney, fmtPct, fmtDate, signClass } from '../lib/format.js';
 import { ErrorBanner, Empty } from '../components/States.jsx';
@@ -32,6 +32,14 @@ export default function History() {
     })();
   }, []);
 
+  const summary = useMemo(() => {
+    const invested = rows.reduce((s, r) => s + Number(r.amount_invested || 0), 0);
+    const pnl = rows.reduce((s, r) => s + Number(r.pnl || 0), 0);
+    const returned = invested + pnl;
+    const returnPct = invested > 0 ? (pnl / invested) * 100 : null;
+    return { invested, returned, pnl, returnPct };
+  }, [rows]);
+
   return (
     <div>
       <div className="page-head">
@@ -41,6 +49,26 @@ export default function History() {
       </div>
 
       <ErrorBanner error={error} />
+
+      {!loading && rows.length > 0 && (
+        <div className="summary-grid reveal">
+          <div className="summary-cell">
+            <div className="metric-label">Total invested</div>
+            <div className="summary-value mono">{fmtMoney(summary.invested)}</div>
+          </div>
+          <div className="summary-cell">
+            <div className="metric-label">Total returned</div>
+            <div className="summary-value mono">{fmtMoney(summary.returned)}</div>
+          </div>
+          <div className="summary-cell">
+            <div className="metric-label">Net P&amp;L</div>
+            <div className={`summary-value mono ${signClass(summary.pnl)}`}>
+              {fmtSignedMoney(summary.pnl)}
+              {summary.returnPct != null && <span className="summary-pct"> · {fmtPct(summary.returnPct)}</span>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="empty"><span className="spinner" style={{ borderTopColor: 'var(--accent)', width: 22, height: 22 }} /></div>

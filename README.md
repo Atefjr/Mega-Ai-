@@ -111,6 +111,12 @@ Notes:
   via `max_uses`; the status rubric is prompt-cached so a batch reuses it at ~90%
   off. Your hard ceiling is the monthly spend limit you set in the Anthropic console.
 
+**Rate limits.** Research uses a web search (now capped at 3 uses) which can be
+token-heavy. On the lowest API tier (30k input tokens/min) a single research call
+can still hit a 429; the client now retries with backoff, and adding a small credit
+balance in the Anthropic console raises your tier and per-minute limit. See
+https://docs.claude.com/en/api/rate-limits.
+
 ## Security
 
 - RLS is left disabled because the DB is reached only by serverless functions

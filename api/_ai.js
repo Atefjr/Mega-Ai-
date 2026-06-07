@@ -75,8 +75,8 @@ export async function buildEvidence(trade) {
   }
 
   try {
-    const news = await getCompanyNews(ticker, 6);
-    ev.recent_headlines = news.map((n) => n.headline).filter(Boolean).slice(0, 6);
+    const news = await getCompanyNews(ticker, 4);
+    ev.recent_headlines = news.map((n) => n.headline).filter(Boolean).slice(0, 4);
   } catch {
     ev.recent_headlines = [];
   }
@@ -109,15 +109,15 @@ Use real ticker symbols. Keep each reason under ~200 chars.`;
 
 /** Research candidate tickers for a thesis using Sonnet + a capped web search. */
 export async function researchCandidates(thesisName, thesisDescription) {
-  const tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
+  const tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }];
   const userText = `Thesis: ${thesisName || '(unnamed)'}\n\n${thesisDescription || ''}`.trim();
   let messages = [{ role: 'user', content: userText }];
   let resp;
-  // Server-side web search may return pause_turn for long turns; continue a couple of times.
-  for (let i = 0; i < 3; i++) {
+  // Server-side web search may return pause_turn for long turns; continue a bit.
+  for (let i = 0; i < 2; i++) {
     resp = await anthropicMessages({
       model: MODEL_RESEARCH,
-      max_tokens: 1800,
+      max_tokens: 1200,
       system: RESEARCH_SYSTEM,
       messages,
       tools,

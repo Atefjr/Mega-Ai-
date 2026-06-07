@@ -69,22 +69,58 @@ export async function getQuotes(symbols) {
   return Object.fromEntries(entries);
 }
 
-/** Fetch recent company news for a symbol. */
+/** Build relevance keywords from a ticker + company name. */
+function companyKeywords(symbol, name) {
+  const kws = [symbol.toUpperCase()];
+  if (name) {
+    const cleaned = name
+      .replace(/\b(inc|corp|corporation|company|co|ltd|limited|plc|holdings?|group|the|class\s+[a-c]|nv|sa|ag)\b/gi, ' ')
+      .replace(/[.,&]/g, ' ');
+    for (const w of cleaned.split(/\s+/)) {
+      if (w && w.length >= 3) kws.push(w.toUpperCase());
+    }
+  }
+  return [...new Set(kws)];
+}
+
+/** Fetch recent company news for a symbol, filtered to genuinely on-topic items. */
 export async function getCompanyNews(symbol, limit = 3) {
   const token = finnhubKey();
+  const sym = symbol.toUpperCase();
   const to = new Date();
   const from = new Date(to.getTime() - 21 * 24 * 60 * 60 * 1000); // last 21 days
   const fmt = (d) => d.toISOString().slice(0, 10);
   const url =
-    `${FINNHUB_BASE}/company-news?symbol=${encodeURIComponent(symbol)}` +
+    `${FINNHUB_BASE}/company-news?symbol=${encodeURIComponent(sym)}` +
     `&from=${fmt(from)}&to=${fmt(to)}&token=${token}`;
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Finnhub news failed for ${symbol} (${res.status})`);
+    throw new Error(`Finnhub news failed for ${sym} (${res.status})`);
   }
   const items = await res.json();
-  if (!Array.isArray(items)) return [];
-  return items.slice(0, limit).map((n) => ({
+  if (!Array.isArray(items) || items.length === 0) return [];
+
+  // Finnhub tags multi-ticker "listicle" articles with every symbol mentioned,
+  // so company-news leaks unrelated stories. Keep only items whose headline or
+  // summary actually names the company. Best-effort company name (free endpoint).
+  let name = '';
+  try {
+    const pr = await fetch(`${FINNHUB_BASE}/stock/profile2?symbol=${encodeURIComponent(sym)}&token=${token}`);
+    if (pr.ok) {
+      const p = await pr.json();
+      name = (p && p.name) || '';
+    }
+  } catch {
+    /* relevance filtering is best-effort */
+  }
+  const keywords = companyKeywords(sym, name);
+  const relevant = items.filter((n) => {
+    const hay = `${n.headline || ''} ${n.summary || ''}`.toUpperCase();
+    return keywords.some((k) => hay.includes(k));
+  });
+  const chosen = relevant.length ? relevant : items; // never show an empty feed
+
+  return chosen.slice(0, limit).map((n) => ({
     headline: n.headline || '',
     url: n.url || '',
     source: n.source || '',
@@ -140,21 +176,32 @@ function anthropicKey() {
   return key;
 }
 
-export async function anthropicMessages(body) {
-  const res = await fetch(ANTHROPIC_URL, {
-    method: 'POST',
-    headers: {
-      'x-api-key': anthropicKey(),
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Anthropic request failed (${res.status}) ${detail.slice(0, 300)}`);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export async function anthropicMessages(body, { retries = 2 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(ANTHROPIC_URL, {
+      method: 'POST',
+      headers: {
+        'x-api-key': anthropicKey(),
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    // Rate limited / overloaded: wait and retry a couple of times.
+    if ((res.status === 429 || res.status === 529) && attempt < retries) {
+      const ra = parseFloat(res.headers.get('retry-after'));
+      const waitS = Number.isFinite(ra) ? ra : 2 * (attempt + 1);
+      await sleep(Math.min(waitS, 12) * 1000);
+      continue;
+    }
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(`Anthropic request failed (${res.status}) ${detail.slice(0, 300)}`);
+    }
+    return res.json();
   }
-  return res.json();
 }
 
 /** Concatenate all text blocks from a Messages response content array. */

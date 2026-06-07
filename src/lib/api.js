@@ -21,7 +21,8 @@ async function request(path, options = {}) {
 export const api = {
   getTrades: () => request('/api/trades'),
   createTrade: (payload) => request('/api/trades', { method: 'POST', body: JSON.stringify(payload) }),
-  closeTrade: (id) => request('/api/trade-close', { method: 'POST', body: JSON.stringify({ id }) }),
+  closeTrade: (id, exitPrice) =>
+    request('/api/trade-close', { method: 'POST', body: JSON.stringify({ id, exit_price: exitPrice }) }),
 
   getTheses: () => request('/api/theses'),
   createThesis: (payload) => request('/api/theses', { method: 'POST', body: JSON.stringify(payload) }),

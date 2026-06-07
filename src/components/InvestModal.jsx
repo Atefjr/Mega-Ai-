@@ -35,7 +35,7 @@ export default function InvestModal({ open, onClose, onSubmit, theses = [], init
     setError('');
     if (!ticker.trim()) return setError('Ticker is required.');
     if (!(amountNum > 0)) return setError('Amount invested must be greater than 0.');
-    if (!(costNum > 0)) return setError('Average cost must be greater than 0.');
+    if (!(costNum > 0)) return setError('Cost per share must be greater than 0.');
     setSubmitting(true);
     try {
       await onSubmit({
@@ -55,7 +55,7 @@ export default function InvestModal({ open, onClose, onSubmit, theses = [], init
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{title}</h3>
-        <p className="modal-sub">Positions are entered as the dollar amount invested. Shares are derived from your average cost.</p>
+        <p className="modal-sub">Enter the dollars invested and the price per share for this purchase. Buying more of a ticker you already hold is folded into one position with an averaged cost.</p>
 
         <div className="field">
           <label>Ticker</label>
@@ -75,7 +75,7 @@ export default function InvestModal({ open, onClose, onSubmit, theses = [], init
               onChange={(e) => setAmount(e.target.value)} placeholder="5000" />
           </div>
           <div className="field">
-            <label>Average cost ($/share)</label>
+            <label>Cost per share ($)</label>
             <input className="mono" type="number" min="0" step="0.01" value={avgCost}
               onChange={(e) => setAvgCost(e.target.value)} placeholder="118.50" />
           </div>
