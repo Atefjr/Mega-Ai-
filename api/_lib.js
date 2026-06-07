@@ -111,3 +111,71 @@ export function sendError(res, err) {
   console.error(err);
   return sendJson(res, 500, { error: String(err.message || err) });
 }
+
+// ---------- Finnhub fundamentals (best-effort; some endpoints may be limited on free tier) ----------
+export async function getBasicFinancials(symbol) {
+  const token = finnhubKey();
+  const url = `${FINNHUB_BASE}/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all&token=${token}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Finnhub metrics failed for ${symbol} (${res.status})`);
+  const data = await res.json();
+  return data && data.metric ? data.metric : {};
+}
+
+export async function getRecommendationTrends(symbol) {
+  const token = finnhubKey();
+  const url = `${FINNHUB_BASE}/stock/recommendation?symbol=${encodeURIComponent(symbol)}&token=${token}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Finnhub recommendation failed for ${symbol} (${res.status})`);
+  const data = await res.json();
+  return Array.isArray(data) && data.length ? data[0] : null; // most recent period
+}
+
+// ---------- Anthropic ----------
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+
+function anthropicKey() {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new ConfigError('Anthropic is not configured. Set ANTHROPIC_API_KEY.');
+  return key;
+}
+
+export async function anthropicMessages(body) {
+  const res = await fetch(ANTHROPIC_URL, {
+    method: 'POST',
+    headers: {
+      'x-api-key': anthropicKey(),
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Anthropic request failed (${res.status}) ${detail.slice(0, 300)}`);
+  }
+  return res.json();
+}
+
+/** Concatenate all text blocks from a Messages response content array. */
+export function extractText(content) {
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((b) => b && b.type === 'text')
+    .map((b) => b.text || '')
+    .join('\n')
+    .trim();
+}
+
+/** Best-effort parse of a JSON object out of model text (tolerates fences / stray prose). */
+export function extractJson(text) {
+  if (!text) return null;
+  const stripped = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  try { return JSON.parse(stripped); } catch { /* fall through */ }
+  const first = stripped.indexOf('{');
+  const last = stripped.lastIndexOf('}');
+  if (first !== -1 && last > first) {
+    try { return JSON.parse(stripped.slice(first, last + 1)); } catch { /* give up */ }
+  }
+  return null;
+}

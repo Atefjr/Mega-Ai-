@@ -3,6 +3,11 @@
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
+  "functions": {
+    "api/ai.js": { "maxDuration": 60 },
+    "api/refresh-status.js": { "maxDuration": 60 },
+    "api/cron-close.js": { "maxDuration": 60 }
+  },
   "crons": [
     { "path": "/api/cron-close", "schedule": "0 22 * * 1-5" }
   ]

@@ -43,6 +43,12 @@ export const api = {
   setTickerMeta: (symbol, halal_status) =>
     request('/api/ticker-meta', { method: 'POST', body: JSON.stringify({ symbol, halal_status }) }),
 
-  research: (thesisName) =>
-    request(`/api/ai?type=research&thesis=${encodeURIComponent(thesisName || '')}`),
+  research: ({ name, description, thesis_id, exclude } = {}) =>
+    request('/api/ai', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'research', thesis: { name, description }, thesis_id, exclude }),
+    }),
+
+  refreshStatus: (payload = {}) =>
+    request('/api/refresh-status', { method: 'POST', body: JSON.stringify(payload) }),
 };

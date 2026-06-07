@@ -96,7 +96,13 @@ export default function ResearchThesis() {
     setResearching(true);
     setError(null);
     try {
-      const r = await api.research(thesis?.name || '');
+      const held = (thesis?.trades || []).map((t) => t.ticker);
+      const r = await api.research({
+        name: thesis?.name || '',
+        description: thesis?.description || '',
+        thesis_id: id,
+        exclude: held,
+      });
       setResult(r);
       await fetchMeta((r?.candidates || []).map((c) => c.ticker));
     } catch (err) {

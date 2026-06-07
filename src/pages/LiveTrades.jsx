@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { fmtMoney, fmtSignedMoney, fmtPct, fmtPrice, signClass, positionStats } from '../lib/format.js';
+import { fmtMoney, fmtSignedMoney, fmtPct, fmtPrice, fmtDate, signClass, positionStats } from '../lib/format.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import HalalBadge from '../components/HalalBadge.jsx';
 import InvestModal from '../components/InvestModal.jsx';
@@ -20,6 +20,8 @@ export default function LiveTrades() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitial, setModalInitial] = useState({});
+  const [evaluating, setEvaluating] = useState(false);
+  const [evaluatingId, setEvaluatingId] = useState(null);
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -107,6 +109,47 @@ export default function LiveTrades() {
     await load();
   }
 
+  function mergeStatus(results) {
+    if (!Array.isArray(results)) return;
+    const now = new Date().toISOString();
+    setTrades((ts) =>
+      ts.map((t) => {
+        const r = results.find((x) => x.id === t.id && !x.error);
+        return r
+          ? { ...t, status_label: r.label, status_rationale: r.rationale, status_updated_at: now }
+          : t;
+      })
+    );
+  }
+
+  async function evaluateAll() {
+    setEvaluating(true);
+    setError(null);
+    try {
+      const { results } = await api.refreshStatus({});
+      mergeStatus(results);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setEvaluating(false);
+    }
+  }
+
+  async function evaluateOne(trade) {
+    setEvaluatingId(trade.id);
+    setError(null);
+    try {
+      const { results } = await api.refreshStatus({ id: trade.id });
+      mergeStatus(results);
+      const r = (results || []).find((x) => x.id === trade.id);
+      if (r && r.error) setError(new Error(r.error));
+    } catch (err) {
+      setError(err);
+    } finally {
+      setEvaluatingId(null);
+    }
+  }
+
   async function handleClose(trade) {
     const ok = window.confirm(`Close ${trade.ticker} at the current live price and move it to History?`);
     if (!ok) return;
@@ -136,9 +179,14 @@ export default function LiveTrades() {
           )}
         </div>
         {!loading && trades.length > 0 && (
-          <button className="btn" onClick={refresh} disabled={refreshing}>
-            {refreshing ? <span className="spinner" style={{ borderTopColor: 'var(--accent)' }} /> : '↻'} Refresh prices
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={evaluateAll} disabled={evaluating} title="Re-score every thesis with Claude">
+              {evaluating ? <span className="spinner" style={{ borderTopColor: 'var(--accent)' }} /> : '✦'} Evaluate theses
+            </button>
+            <button className="btn" onClick={refresh} disabled={refreshing}>
+              {refreshing ? <span className="spinner" style={{ borderTopColor: 'var(--accent)' }} /> : '↻'} Refresh prices
+            </button>
+          </div>
         )}
       </div>
 
@@ -204,6 +252,12 @@ export default function LiveTrades() {
                     {trade.thesis?.name || 'Unassigned'}
                   </span>
                 </div>
+                {trade.status_rationale && (
+                  <div className="status-rationale">
+                    {trade.status_rationale}
+                    {trade.status_updated_at && <span className="status-asof"> · as of {fmtDate(trade.status_updated_at)}</span>}
+                  </div>
+                )}
 
                 <div className="news">
                   <div className="news-head">Latest news</div>
@@ -229,6 +283,14 @@ export default function LiveTrades() {
                     onClick={() => trade.thesis_id && navigate(`/research/${trade.thesis_id}`)}
                   >
                     Research →
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => evaluateOne(trade)}
+                    disabled={evaluatingId === trade.id}
+                    title="Re-score this thesis with Claude"
+                  >
+                    {evaluatingId === trade.id ? <span className="spinner" style={{ borderTopColor: 'var(--accent)' }} /> : '✦ Re-check'}
                   </button>
                   <button className="btn btn-sm btn-danger" onClick={() => handleClose(trade)} disabled={closingId === trade.id}>
                     {closingId === trade.id ? <span className="spinner" style={{ borderTopColor: 'var(--red)' }} /> : 'Close trade'}

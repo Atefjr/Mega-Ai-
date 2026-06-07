@@ -1,9 +1,9 @@
-# Stock Mega AI — Slice 1
+# Stock Mega AI
 
-A thesis-driven stock-tracking dashboard. **Slice 1** delivers the full UI, real
-US market data (prices + news), and persistence. The AI features (thesis status,
-daily theme research, new-theme research) are **stubbed** behind clean interfaces
-and get wired to Claude in Slice 2. Telegram notifications come later.
+A thesis-driven stock-tracking dashboard. The full UI, real US market data
+(prices + news), and persistence are live, and so is the AI layer: **thesis
+status** (Claude Haiku 4.5) and **theme research** (Claude Sonnet 4.6 + web
+search). Telegram notifications come next.
 
 Three pages:
 - **Live Trades** — one widget per open position: live price + day move, return
@@ -57,8 +57,11 @@ Copy `.env.example` to `.env` and fill in:
 FINNHUB_API_KEY=...
 SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
-CRON_SECRET=            # optional
+ANTHROPIC_API_KEY=...     # for thesis status + research (Slice 2)
+CRON_SECRET=              # optional
 ```
+Get the Anthropic key at https://console.anthropic.com. Set a monthly spend limit
+there — that's your real hard cap. No schema change is needed for Slice 2.
 
 ### 5. Run locally
 The easiest way to run the frontend **and** the `/api` functions together is the
@@ -97,9 +100,16 @@ Notes:
 ## Cost posture (recap)
 
 - **Prices, P&L, news → $0.** All served by Finnhub's free tier, never the model.
-- **AI → stubbed in Slice 1**, so no model spend yet. In Slice 2 the cost levers
-  (compute-once-daily + cache, Haiku for classification, capped web search,
-  batch + prompt caching, hard spend cap) get applied where the AI lives.
+- **AI (Slice 2, now live) → small.** Thesis status uses Claude Haiku 4.5
+  (~$1 / $5 per million input/output tokens); theme research uses Claude Sonnet 4.6
+  (~$3 / $15) plus a per-search web-search fee. A typical status call is a few
+  thousand tokens, so cents per evaluation; research is a few cents per run.
+- **Cost controls in place:** Haiku for the high-volume status calls (model
+  tiering); status computed once per day by the cron and cached on each position
+  (the Live Trades page reads stored status, it does not call AI on load); per-run
+  caps (max 25 manual, 30 cron) bound any single action; the web search is capped
+  via `max_uses`; the status rubric is prompt-cached so a batch reuses it at ~90%
+  off. Your hard ceiling is the monthly spend limit you set in the Anthropic console.
 
 ## Security
 
@@ -109,12 +119,14 @@ Notes:
 
 ## Project structure
 ```
-api/                serverless functions (data + stubbed AI)
-  _lib.js           supabase client, finnhub fetchers, helpers
+api/                serverless functions
+  _lib.js           supabase client, finnhub fetchers, anthropic client, helpers
+  _ai.js            evidence packet + thesis-status classifier + research (Claude)
   quotes.js  news.js  theses.js  trades.js  trade-close.js  history.js
   ticker-meta.js    halal status (user-set) per symbol
-  ai.js             STUB (status + research)
-  cron-close.js     close-of-day snapshot
+  ai.js             theme research (Sonnet + web search)
+  refresh-status.js thesis status (Haiku) for one or all positions
+  cron-close.js     close-of-day snapshot + once-daily status pass
 src/
   pages/            LiveTrades, Research, ResearchThesis, History
   components/        StatusBadge, HalalBadge, InvestModal, ThesisModal, States
@@ -123,10 +135,21 @@ supabase/
   schema.sql  seed.sql
 ```
 
-## What's next (Slice 2)
-- Replace `/api/ai.js` with real Claude calls: status classification (Haiku over a
-  small evidence packet) and theme research (Sonnet + capped web search).
-- Wire the Telegram bot for "Status Change" and "P&L Negative at close".
-- Daily existing-theme pass on the cron, writing status + rationale to `trades`.
-- Optional: automated halal screening (provider API or computed ratios) to fill
+## How the AI works (Slice 2)
+- **Thesis status.** For each position we assemble a small, mostly-free evidence
+  packet from Finnhub (price vs cost, 52-week range, analyst recommendations,
+  recent earnings, headlines) and ask Claude Haiku to label the thesis
+  **Intact / Cautious / Broken** with a one-line rationale. The rationale and an
+  "as of" timestamp show on each Live Trades card. Trigger it with **Evaluate
+  theses** (all) or **Re-check** (one); the daily cron also refreshes it.
+- **Theme research.** On a thesis, **Research new stocks** asks Claude Sonnet
+  (with a capped web search) for US-listed candidates that fit, each with a bull
+  and bear case and an Invest button. Results are saved as the thesis's
+  suggestions.
+
+## What's next (Slice 3)
+- Wire the Telegram bot for "Status Change" and "P&L Negative at close" alerts
+  (the cron is the natural place to detect and push these).
+- Optional: a hard per-day call cap in the app (in addition to the console spend
+  limit), and automated halal screening (provider API or computed ratios) to fill
   `ticker_meta.halal_status` instead of setting it by hand.

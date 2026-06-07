@@ -1,44 +1,39 @@
-// SLICE 1 STUB. No model is called here yet.
-// In Slice 2 this endpoint will: (status) assemble an evidence packet
-// (news + earnings surprise + estimate revisions + price vs cost/MAs) and ask
-// Claude Haiku to classify Intact/Cautious/Broken with a one-line rationale;
-// (research) ask Claude Sonnet (with a capped web search) to surface candidate
-// tickers with reasons for/against. For now it returns clearly-labelled
-// placeholders so the UI flow can be exercised end to end.
-import { sendJson } from './_lib.js';
+// Theme research endpoint. Delegates to researchCandidates() in _ai.js, which
+// uses Claude Sonnet + a capped web search and tolerates web-search pause_turn.
+import { getSupabase, sendJson, sendError } from './_lib.js';
+import { researchCandidates } from './_ai.js';
 
 export default async function handler(req, res) {
-  const type = (req.query?.type || '').toString();
+  try {
+    const type = (req.query?.type || (req.body && req.body.type) || '').toString();
+    if (type !== 'research') {
+      return sendJson(res, 400, { error: 'Unknown type. Use type=research.' });
+    }
 
-  if (type === 'status') {
-    return sendJson(res, 200, {
-      stub: true,
-      label: null,
-      rationale: 'Thesis status scoring is wired up in Slice 2.',
-    });
+    const body = req.body || {};
+    const thesis = body.thesis || {};
+    const name = (thesis.name || req.query?.thesis || '').toString().trim();
+    const description = (thesis.description || '').toString();
+    const exclude = Array.isArray(body.exclude) ? body.exclude.map((s) => String(s).toUpperCase()) : [];
+    if (!name) return sendJson(res, 400, { error: 'thesis name is required' });
+
+    const { summary, candidates } = await researchCandidates(name, description);
+    const filtered = (candidates || []).filter((c) => !exclude.includes(c.ticker)).slice(0, 6);
+
+    // Persist as suggestions so they stick on the thesis (best-effort).
+    if (body.thesis_id && filtered.length) {
+      const supabase = getSupabase();
+      const rows = filtered.map((c) => ({
+        thesis_id: body.thesis_id,
+        ticker: c.ticker,
+        reasons_for: c.reasons_for,
+        reasons_against: c.reasons_against,
+      }));
+      await supabase.from('suggested_tickers').upsert(rows, { onConflict: 'thesis_id,ticker' });
+    }
+
+    return sendJson(res, 200, { stub: false, summary, candidates: filtered });
+  } catch (err) {
+    return sendError(res, err);
   }
-
-  if (type === 'research') {
-    const thesis = (req.query?.thesis || 'this thesis').toString();
-    return sendJson(res, 200, {
-      stub: true,
-      summary:
-        `Placeholder research for "${thesis}". In Slice 2, Claude will research ` +
-        `tickers that fit the theme and explain the case for and against each.`,
-      candidates: [
-        {
-          ticker: 'EXMPL',
-          reasons_for: 'Placeholder bull case — replaced by AI-generated reasoning in Slice 2.',
-          reasons_against: 'Placeholder bear case — replaced by AI-generated reasoning in Slice 2.',
-        },
-        {
-          ticker: 'DEMO',
-          reasons_for: 'Placeholder bull case — replaced by AI-generated reasoning in Slice 2.',
-          reasons_against: 'Placeholder bear case — replaced by AI-generated reasoning in Slice 2.',
-        },
-      ],
-    });
-  }
-
-  return sendJson(res, 400, { error: 'Unknown type. Use type=status or type=research.' });
 }
