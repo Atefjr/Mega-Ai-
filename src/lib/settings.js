@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-export const APP_VERSION = '0.3.0';
+export const APP_VERSION = '0.4.0';
+export const APP_NAME = 'CLVR';
 
 const KEY = 'sma_settings';
 const DEFAULTS = { theme: 'dark', showConfidence: true, debug: false };

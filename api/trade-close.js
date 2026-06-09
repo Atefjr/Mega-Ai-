@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     // Load the open position (with thesis name for the history record).
     const { data: trade, error: loadErr } = await supabase
       .from('trades')
-      .select('id, ticker, amount_invested, avg_cost, purchased_at, thesis_id, thesis:theses(name)')
+      .select('id, ticker, amount_invested, avg_cost, purchased_at, is_paper, thesis_id, thesis:theses(name)')
       .eq('id', id)
       .single();
     if (loadErr) throw loadErr;
@@ -50,6 +50,7 @@ export default async function handler(req, res) {
       pnl,
       performance_pct: performancePct,
       purchased_at: trade.purchased_at,
+      is_paper: !!trade.is_paper,
     };
 
     const { data: inserted, error: insErr } = await supabase

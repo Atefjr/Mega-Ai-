@@ -19,7 +19,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getTrades: () => request('/api/trades'),
+  getTrades: (paper) => {
+    const q = paper === true ? '?paper=true' : paper === false ? '?paper=false' : '';
+    return request(`/api/trades${q}`);
+  },
   createTrade: (payload) => request('/api/trades', { method: 'POST', body: JSON.stringify(payload) }),
   closeTrade: (id, exitPrice) =>
     request('/api/trade-close', { method: 'POST', body: JSON.stringify({ id, exit_price: exitPrice }) }),
@@ -34,10 +37,18 @@ export const api = {
 
   analyze: ({ ticker, force } = {}) =>
     request('/api/analyze', { method: 'POST', body: JSON.stringify({ ticker, force }) }),
+  getAnalysis: (ticker) => request(`/api/analyze?ticker=${encodeURIComponent(ticker)}`),
+  listAnalyses: () => request('/api/analyze'),
   getTickerPerf: (symbols) => {
     const list = Array.isArray(symbols) ? symbols.join(',') : symbols;
     return request(`/api/ticker-perf${list ? `?symbols=${encodeURIComponent(list)}` : ''}`);
   },
+
+  getNotifications: () => request('/api/notifications'),
+  markNotificationRead: (id) => request('/api/notifications', { method: 'PATCH', body: JSON.stringify({ id }) }),
+  markAllNotificationsRead: () => request('/api/notifications', { method: 'PATCH', body: JSON.stringify({ markAllRead: true }) }),
+  deleteNotification: (id) => request(`/api/notifications?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  clearNotifications: () => request('/api/notifications?all=true', { method: 'DELETE' }),
 
   getQuotes: (symbols) => {
     const list = Array.isArray(symbols) ? symbols.join(',') : symbols;

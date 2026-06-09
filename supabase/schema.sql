@@ -34,6 +34,7 @@ create table if not exists trades (
   status_conviction smallint,                     -- 0-100 conviction score
   status_signals   jsonb,                          -- {execution, price, sentiment}
   status_updated_at timestamptz,
+  is_paper         boolean not null default false,  -- paper trade vs. real money
   created_at       timestamptz not null default now()
 );
 
@@ -47,6 +48,7 @@ create table if not exists suggested_tickers (
   ticker          text not null,
   reasons_for     text default '',
   reasons_against text default '',
+  conviction      smallint,
   created_at      timestamptz not null default now(),
   unique (thesis_id, ticker)
 );
@@ -63,6 +65,7 @@ create table if not exists history (
   pnl              numeric not null,
   performance_pct  numeric not null,
   purchased_at     date,
+  is_paper         boolean not null default false,
   closed_at        timestamptz not null default now()
 );
 
@@ -96,3 +99,18 @@ create table if not exists stock_analyses (
   data       jsonb not null,
   created_at timestamptz not null default now()
 );
+
+-- Notification center (Slice 4)
+create table if not exists notifications (
+  id          uuid primary key default gen_random_uuid(),
+  type        text not null,
+  title       text not null,
+  body        text default '',
+  ticker      text,
+  thesis_id   uuid,
+  thesis_name text,
+  meta        jsonb,
+  read        boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+create index if not exists notifications_created_idx on notifications(created_at desc);

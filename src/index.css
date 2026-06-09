@@ -1,22 +1,23 @@
 :root {
-  /* surfaces */
-  --bg: #090d13;
-  --bg-elev: #0f141d;
-  --panel: #121925;
-  --panel-2: #0d131c;
-  --border: #1d2633;
-  --border-strong: #2a3543;
+  /* surfaces — CLVR deep navy */
+  --bg: #0a0f1e;
+  --bg-elev: #101729;
+  --panel: #131c31;
+  --panel-2: #0d1424;
+  --border: #1e2a40;
+  --border-strong: #2c3b54;
 
   /* text */
-  --text: #e7eaf0;
-  --text-dim: #8b94a4;
-  --text-faint: #59626f;
+  --text: #e9edf4;
+  --text-dim: #8b96ab;
+  --text-faint: #586579;
 
-  /* brand + semantics */
-  --accent: #4d8dff;
-  --accent-dim: rgba(77, 141, 255, 0.14);
-  --green: #43c463;
-  --green-dim: rgba(67, 196, 99, 0.13);
+  /* brand + semantics — CLVR green is the accent */
+  --accent: #4bd07f;
+  --accent-2: #74e59a;
+  --accent-dim: rgba(75, 208, 127, 0.14);
+  --green: #4bd07f;
+  --green-dim: rgba(75, 208, 127, 0.14);
   --amber: #e0a83e;
   --amber-dim: rgba(224, 168, 62, 0.14);
   --red: #f25c4c;
@@ -42,8 +43,8 @@ body {
   color: var(--text);
   background-color: var(--bg);
   background-image:
-    radial-gradient(900px 500px at 12% -8%, rgba(77, 141, 255, 0.10), transparent 60%),
-    radial-gradient(800px 600px at 100% 0%, rgba(67, 196, 99, 0.06), transparent 55%),
+    radial-gradient(900px 520px at 10% -10%, rgba(75, 208, 127, 0.12), transparent 60%),
+    radial-gradient(820px 600px at 100% 0%, rgba(75, 208, 127, 0.05), transparent 55%),
     linear-gradient(transparent 0 31px, rgba(255, 255, 255, 0.018) 31px 32px),
     linear-gradient(90deg, transparent 0 31px, rgba(255, 255, 255, 0.018) 31px 32px);
   background-size: auto, auto, 32px 32px, 32px 32px;
@@ -72,17 +73,11 @@ button { font-family: inherit; cursor: pointer; }
   padding: 0 24px; height: 64px;
   display: flex; align-items: center; gap: 28px;
 }
-.brand { display: flex; align-items: center; gap: 11px; }
-.brand-mark {
-  width: 30px; height: 30px; border-radius: 8px;
-  display: grid; place-items: center;
-  background: linear-gradient(140deg, var(--accent), #2a5fbf);
-  box-shadow: 0 0 0 1px rgba(77, 141, 255, 0.4), 0 6px 18px -6px var(--accent);
-  font-size: 16px;
-}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo { width: 30px; height: 30px; display: block; filter: drop-shadow(0 5px 14px rgba(75, 208, 127, 0.45)); }
 .brand-name {
-  font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em;
-  font-size: 18px;
+  font-family: var(--font-display); font-weight: 800; letter-spacing: 0.02em;
+  font-size: 20px;
 }
 .brand-name span { color: var(--accent); }
 
@@ -399,8 +394,9 @@ table.history tbody tr:hover { background: rgba(255,255,255,.02); }
   --text: #19212e;
   --text-dim: #56616f;
   --text-faint: #94a0ae;
-  --accent: #2f6df0;
-  --accent-dim: rgba(47, 109, 240, 0.10);
+  --accent: #1fa85b;
+  --accent-2: #46c96e;
+  --accent-dim: rgba(31, 168, 91, 0.12);
   --green: #198a45; --green-dim: rgba(25, 138, 69, 0.12);
   --amber: #b07916; --amber-dim: rgba(176, 121, 22, 0.14);
   --red: #d23a2c; --red-dim: rgba(210, 58, 44, 0.10);
@@ -408,7 +404,7 @@ table.history tbody tr:hover { background: rgba(255,255,255,.02); }
 }
 :root[data-theme="light"] body {
   background-image:
-    radial-gradient(900px 500px at 12% -8%, rgba(47, 109, 240, 0.07), transparent 60%),
+    radial-gradient(900px 500px at 12% -8%, rgba(31, 168, 91, 0.08), transparent 60%),
     linear-gradient(transparent 0 31px, rgba(20, 30, 50, 0.03) 31px 32px),
     linear-gradient(90deg, transparent 0 31px, rgba(20, 30, 50, 0.03) 31px 32px);
   background-size: auto, 32px 32px, 32px 32px;
@@ -519,3 +515,36 @@ table.history tbody tr:hover { background: rgba(255,255,255,.02); }
 .rank-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; }
 .rank-pos { font-family: var(--font-mono); color: var(--text-faint); font-size: 11px; }
 .row-actions { display: flex; gap: 6px; }
+
+/* ---------- notification bell + center ---------- */
+.bell { position: relative; margin-left: 12px; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: transparent; border: 1px solid var(--border-strong); color: var(--text-dim); flex: 0 0 auto; }
+.bell:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+.bell-badge { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--red); color: #fff; font-family: var(--font-mono); font-size: 10px; font-weight: 700; display: grid; place-items: center; border: 2px solid var(--bg-elev); }
+.notif-list { display: flex; flex-direction: column; gap: 10px; }
+.notif { display: flex; gap: 12px; padding: 14px 16px; align-items: flex-start; }
+.notif.unread { border-left: 3px solid var(--accent); }
+.notif-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; }
+.notif-body { flex: 1; min-width: 0; }
+.notif-title { font-weight: 600; font-size: 14.5px; }
+.notif-text { color: var(--text-dim); font-size: 13px; margin-top: 3px; word-break: break-word; }
+.notif-meta { color: var(--text-faint); font-size: 11px; margin-top: 5px; font-family: var(--font-mono); }
+.notif-x { background: transparent; border: none; color: var(--text-faint); font-size: 18px; line-height: 1; padding: 0 4px; }
+.notif-x:hover { color: var(--red); }
+
+/* conviction pending */
+.conviction-pending { display: flex; align-items: center; gap: 8px; }
+.conviction-pending-note { font-size: 11px; color: var(--text-faint); font-style: italic; }
+
+.paper-tag { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: 5px; padding: 1px 5px; }
+
+/* ---------- recent analyses ---------- */
+.recent-analyses { margin-bottom: 22px; }
+.recent-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.recent-item { display: inline-flex; align-items: center; gap: 8px; padding: 7px 11px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+.recent-item:hover { border-color: var(--accent); }
+.recent-tk { font-weight: 700; font-size: 13px; }
+.recent-verdict { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; }
+.recent-verdict.intact { color: var(--green); background: var(--green-dim); }
+.recent-verdict.cautious { color: var(--amber); background: var(--amber-dim); }
+.recent-verdict.broken { color: var(--red); background: var(--red-dim); }
+.recent-date { font-size: 11px; color: var(--text-faint); }

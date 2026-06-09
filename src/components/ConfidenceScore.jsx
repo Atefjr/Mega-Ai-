@@ -10,8 +10,15 @@ function bandColor(v) {
 export default function ConfidenceScore({ conviction, signals, compact = false }) {
   const settings = useSettings();
   if (!settings.showConfidence) return null;
-  if (conviction == null && !signals) return null;
   const v = conviction;
+  if (v == null && !signals) {
+    return (
+      <div className="conviction conviction-pending" title="Run Evaluate to score this thesis.">
+        <span className="conviction-label">Conviction</span>
+        <span className="conviction-pending-note">not scored yet — run Evaluate</span>
+      </div>
+    );
+  }
   return (
     <div className="conviction" title="Model's read of how strongly current evidence supports the thesis. Not a probability of profit; not financial advice.">
       <div className="conviction-head">

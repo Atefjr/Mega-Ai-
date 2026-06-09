@@ -5,7 +5,10 @@ import ResearchThesis from './pages/ResearchThesis.jsx';
 import History from './pages/History.jsx';
 import Analyze from './pages/Analyze.jsx';
 import Settings from './pages/Settings.jsx';
-import { APP_VERSION } from './lib/settings.js';
+import Notifications from './pages/Notifications.jsx';
+import Logo from './components/Logo.jsx';
+import NotificationBell from './components/NotificationBell.jsx';
+import { APP_NAME, APP_VERSION } from './lib/settings.js';
 
 export default function App() {
   return (
@@ -13,16 +16,18 @@ export default function App() {
       <header className="topbar">
         <div className="topbar-inner">
           <NavLink to="/live" className="brand">
-            <span className="brand-mark">▲</span>
-            <span className="brand-name">Stock <span>Mega</span> AI</span>
+            <Logo size={30} />
+            <span className="brand-name">{APP_NAME}</span>
           </NavLink>
           <nav className="nav">
-            <NavLink to="/live" className={({ isActive }) => (isActive ? 'active' : '')}>Live Trades</NavLink>
+            <NavLink to="/live" className={({ isActive }) => (isActive ? 'active' : '')}>Live</NavLink>
+            <NavLink to="/paper" className={({ isActive }) => (isActive ? 'active' : '')}>Paper</NavLink>
             <NavLink to="/research" className={({ isActive }) => (isActive ? 'active' : '')}>Research</NavLink>
             <NavLink to="/analyze" className={({ isActive }) => (isActive ? 'active' : '')}>Analyze</NavLink>
             <NavLink to="/history" className={({ isActive }) => (isActive ? 'active' : '')}>History</NavLink>
             <NavLink to="/settings" className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink>
           </nav>
+          <NotificationBell />
         </div>
       </header>
 
@@ -30,16 +35,18 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/live" replace />} />
           <Route path="/live" element={<LiveTrades />} />
+          <Route path="/paper" element={<LiveTrades paper />} />
           <Route path="/research" element={<Research />} />
           <Route path="/research/:id" element={<ResearchThesis />} />
           <Route path="/analyze" element={<Analyze />} />
           <Route path="/history" element={<History />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="*" element={<Navigate to="/live" replace />} />
         </Routes>
       </main>
 
-      <footer className="app-footer">Stock Mega AI · v{APP_VERSION}</footer>
+      <footer className="app-footer">{APP_NAME} · v{APP_VERSION}</footer>
     </div>
   );
 }

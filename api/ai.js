@@ -1,6 +1,6 @@
 // Theme research endpoint. Delegates to researchCandidates() in _ai.js, which
 // uses Claude Sonnet + a capped web search and tolerates web-search pause_turn.
-import { getSupabase, sendJson, sendError } from './_lib.js';
+import { getSupabase, sendJson, sendError, addNotification } from './_lib.js';
 import { researchCandidates } from './_ai.js';
 
 export default async function handler(req, res) {
@@ -23,13 +23,36 @@ export default async function handler(req, res) {
     // Persist as suggestions so they stick on the thesis (best-effort).
     if (body.thesis_id && filtered.length) {
       const supabase = getSupabase();
+
+      // Which of these are genuinely new (for the notification)?
+      let existing = [];
+      try {
+        const { data } = await supabase.from('suggested_tickers').select('ticker').eq('thesis_id', body.thesis_id);
+        existing = (data || []).map((r) => r.ticker);
+      } catch {
+        /* non-critical */
+      }
+      const fresh = filtered.filter((c) => !existing.includes(c.ticker));
+
       const rows = filtered.map((c) => ({
         thesis_id: body.thesis_id,
         ticker: c.ticker,
         reasons_for: c.reasons_for,
         reasons_against: c.reasons_against,
+        conviction: c.conviction ?? null,
       }));
       await supabase.from('suggested_tickers').upsert(rows, { onConflict: 'thesis_id,ticker' });
+
+      if (fresh.length) {
+        await addNotification(supabase, {
+          type: 'new_suggestions',
+          title: `${fresh.length} new ${fresh.length === 1 ? 'idea' : 'ideas'} for ${name}`,
+          body: fresh.map((c) => c.ticker).join(', '),
+          thesis_id: body.thesis_id,
+          thesis_name: name,
+          meta: { tickers: fresh.map((c) => c.ticker) },
+        });
+      }
     }
 
     return sendJson(res, 200, { stub: false, summary, candidates: filtered });

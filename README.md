@@ -1,10 +1,14 @@
-# Stock Mega AI
+# CLVR
 
-A thesis-driven stock-tracking dashboard. The full UI, real US market data
-(prices + news), and persistence are live, and so is the AI layer: **thesis
-status + conviction score** (Claude Haiku 4.5), **theme research** and a
-**stock analysis** deep-dive (Claude Sonnet 4.6 + web search). Telegram
-notifications come next.
+A thesis-driven stock-tracking dashboard (formerly "Stock Mega AI"). Real US
+market data (prices + news), persistence, and a Claude AI layer: **thesis
+status + conviction score** (Claude Haiku 4.5), **theme research**, and a
+**stock analysis** deep-dive (Claude Sonnet 4.6 + web search).
+
+New in this version: a **Paper** board to track ideas without real money (both
+Live and Paper hold any stock, halal or not — the moon indicator stays on every
+ticker), a **Notifications** center for thesis status changes and new ideas,
+conviction scores on AI candidates, and a reopenable **Recent analyses** list.
 
 Pages:
 - **Live Trades** — one widget per open position: live price + day move, return
@@ -57,9 +61,10 @@ npm install
 1. Create a project at https://supabase.com.
 2. In **SQL Editor**, run `supabase/schema.sql`.
    - **Already have a database from an earlier version?** Don't re-run the whole
-     schema — instead run `supabase/migration_slice3.sql`, which adds the new
-     thesis criteria columns, the conviction fields, and the `stock_analyses`
-     cache table. It's safe to run more than once.
+     schema — instead run the migration files in order for whatever you're missing:
+     `supabase/migration_slice3.sql` (thesis criteria, conviction, analysis cache)
+     and `supabase/migration_slice4.sql` (paper trades, candidate conviction, the
+     notifications table). Both are safe to re-run.
 3. (Optional) run `supabase/seed.sql` to populate sample theses + an NVDA position
    so the dashboard isn't empty on first load.
 4. In **Project Settings → API**, copy the **Project URL** and the

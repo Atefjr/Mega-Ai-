@@ -1,7 +1,7 @@
 {
-  "name": "stock-mega-ai",
+  "name": "clvr",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Stock Mega AI - thesis-driven stock tracking dashboard (Slice 1: UI + live data + persistence, AI stubbed)",
   "scripts": {

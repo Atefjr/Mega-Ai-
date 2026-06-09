@@ -234,3 +234,20 @@ export function extractJson(text) {
   }
   return null;
 }
+
+// ---------- Notifications ----------
+export async function addNotification(supabase, n) {
+  try {
+    await supabase.from('notifications').insert({
+      type: n.type,
+      title: n.title,
+      body: n.body || '',
+      ticker: n.ticker || null,
+      thesis_id: n.thesis_id || null,
+      thesis_name: n.thesis_name || null,
+      meta: n.meta || null,
+    });
+  } catch (e) {
+    console.error('notification insert failed:', e.message || e);
+  }
+}

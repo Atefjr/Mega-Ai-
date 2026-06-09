@@ -83,6 +83,12 @@ export default function History() {
   const [error, setError] = useState(null);
   const [editRow, setEditRow] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [filter, setFilter] = useState('all');
+
+  const filtered = useMemo(() => {
+    if (filter === 'all') return rows;
+    return rows.filter((r) => (filter === 'paper' ? r.is_paper : !r.is_paper));
+  }, [rows, filter]);
 
   async function loadMeta(history) {
     const tickers = [...new Set((history || []).map((r) => r.ticker))];
@@ -110,16 +116,16 @@ export default function History() {
   }, []);
 
   const summary = useMemo(() => {
-    const invested = rows.reduce((s, r) => s + Number(r.amount_invested || 0), 0);
-    const pnl = rows.reduce((s, r) => s + Number(r.pnl || 0), 0);
+    const invested = filtered.reduce((s, r) => s + Number(r.amount_invested || 0), 0);
+    const pnl = filtered.reduce((s, r) => s + Number(r.pnl || 0), 0);
     const returned = invested + pnl;
     const returnPct = invested > 0 ? (pnl / invested) * 100 : null;
     return { invested, returned, pnl, returnPct };
-  }, [rows]);
+  }, [filtered]);
 
   const thesisRank = useMemo(() => {
     const by = {};
-    for (const r of rows) {
+    for (const r of filtered) {
       const name = r.thesis_name || 'Unassigned';
       by[name] = by[name] || { name, invested: 0, pnl: 0, count: 0 };
       by[name].invested += Number(r.amount_invested || 0);
@@ -130,7 +136,7 @@ export default function History() {
       .filter((t) => t.invested > 0)
       .map((t) => ({ ...t, returnPct: (t.pnl / t.invested) * 100 }))
       .sort((a, b) => b.returnPct - a.returnPct);
-  }, [rows]);
+  }, [filtered]);
 
   const bestThesis = thesisRank[0] || null;
 
@@ -155,15 +161,24 @@ export default function History() {
 
   return (
     <div>
-      <div className="page-head">
-        <div className="page-kicker">Closed Trades</div>
-        <h1 className="page-title">History</h1>
-        <p className="page-sub">Every position you've closed, with its realized performance and how long you held it.</p>
+      <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div className="page-kicker">Closed Trades</div>
+          <h1 className="page-title">History</h1>
+          <p className="page-sub">Every position you've closed, with its realized performance and how long you held it.</p>
+        </div>
+        {!loading && rows.length > 0 && (
+          <div className="seg">
+            <button className={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>All</button>
+            <button className={filter === 'live' ? 'on' : ''} onClick={() => setFilter('live')}>Live</button>
+            <button className={filter === 'paper' ? 'on' : ''} onClick={() => setFilter('paper')}>Paper</button>
+          </div>
+        )}
       </div>
 
       <ErrorBanner error={error} />
 
-      {!loading && rows.length > 0 && (
+      {!loading && filtered.length > 0 && (
         <>
           <div className={`summary-grid reveal ${bestThesis ? 'cols-4' : ''}`}>
             <div className="summary-cell">
@@ -210,8 +225,10 @@ export default function History() {
         <div className="empty"><span className="spinner" style={{ borderTopColor: 'var(--accent)', width: 22, height: 22 }} /></div>
       ) : rows.length === 0 ? (
         <Empty icon="⌁" title="No closed trades yet">
-          <p>When you close a position on the Live Trades page, it lands here with its final P&L.</p>
+          <p>When you close a position on the Live or Paper page, it lands here with its final P&L.</p>
         </Empty>
+      ) : filtered.length === 0 ? (
+        <div className="news-empty" style={{ padding: '18px 0' }}>No {filter} trades closed yet.</div>
       ) : (
         <div className="card table-wrap reveal">
           <table className="history">
@@ -225,12 +242,13 @@ export default function History() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {filtered.map((r) => (
                 <tr key={r.id}>
                   <td>
                     <div className="ticker-line">
                       <span className="h-ticker">{r.ticker}</span>
                       <HalalBadge status={meta[r.ticker]?.halal_status} size={16} />
+                      {r.is_paper && <span className="paper-tag">paper</span>}
                     </div>
                     <div className="amount mono" style={{ marginTop: 2 }}>{fmtMoney(r.amount_invested)} in</div>
                   </td>

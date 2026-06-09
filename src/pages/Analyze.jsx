@@ -49,6 +49,16 @@ export default function Analyze() {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState({ cached: false, created_at: null });
+  const [recent, setRecent] = useState([]);
+
+  async function loadRecent() {
+    try {
+      const { recent: r } = await api.listAnalyses();
+      setRecent(r || []);
+    } catch {
+      /* non-critical */
+    }
+  }
 
   async function run(sym, force = false) {
     const t = (sym || ticker || '').trim().toUpperCase();
@@ -60,6 +70,30 @@ export default function Analyze() {
       const r = await api.analyze({ ticker: t, force });
       setResult(r.analysis || null);
       setMeta({ cached: r.cached, created_at: r.created_at });
+      loadRecent();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openCached(t) {
+    const sym = String(t).toUpperCase();
+    setTicker(sym);
+    setParams({ ticker: sym });
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const r = await api.getAnalysis(sym);
+      if (r.analysis) {
+        setResult(r.analysis);
+        setMeta({ cached: true, created_at: r.created_at });
+      } else {
+        await run(sym);
+        return;
+      }
     } catch (err) {
       setError(err);
     } finally {
@@ -68,6 +102,7 @@ export default function Analyze() {
   }
 
   useEffect(() => {
+    loadRecent();
     if (initial) run(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
@@ -99,6 +134,21 @@ export default function Analyze() {
       </div>
 
       <ErrorBanner error={error} />
+
+      {recent.length > 0 && (
+        <div className="recent-analyses">
+          <div className="chips-label" style={{ marginBottom: 8 }}>Recent analyses</div>
+          <div className="recent-list">
+            {recent.map((r) => (
+              <button key={r.ticker} className="recent-item" onClick={() => openCached(r.ticker)} title={`Open ${r.ticker} (saved)`}>
+                <span className="recent-tk mono">{r.ticker}</span>
+                {r.verdict && <span className={`recent-verdict ${verdictClass(r.verdict)}`}>{r.verdict}</span>}
+                <span className="recent-date mono">{new Date(r.created_at).toLocaleDateString()}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="empty">

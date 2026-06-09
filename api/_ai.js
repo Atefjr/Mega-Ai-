@@ -127,9 +127,9 @@ export async function computeThesisStatus(trade) {
 
 const RESEARCH_SYSTEM = `You are an equity research assistant for thesis-driven investing.
 Use web search to identify CURRENT, real, US-listed (NYSE/Nasdaq) stocks that fit the user's thesis.
-Return 3-5 candidate tickers, each with a concise bull case and bear case grounded in what you find.
+Return 3-5 candidate tickers, each with a concise bull case, bear case, and a CONVICTION score 0-100 = how strongly the evidence you found supports this fitting the thesis (a qualitative read, not a probability of profit).
 Respond with ONLY a JSON object — no prose, no markdown fences:
-{"summary": "<=300 char overview", "candidates": [{"ticker": "TICK", "reasons_for": "...", "reasons_against": "..."}]}
+{"summary": "<=300 char overview", "candidates": [{"ticker": "TICK", "reasons_for": "...", "reasons_against": "...", "conviction": 0}]}
 Use real ticker symbols. Keep each reason under ~200 chars.`;
 
 /** Research candidate tickers for a thesis using Sonnet + a capped web search. */
@@ -161,6 +161,7 @@ export async function researchCandidates(thesisName, thesisDescription) {
           ticker: String(c.ticker).toUpperCase().slice(0, 8),
           reasons_for: String(c.reasons_for || '').slice(0, 400),
           reasons_against: String(c.reasons_against || '').slice(0, 400),
+          conviction: clamp100(c.conviction),
         }))
     : [];
   return { summary: String(parsed.summary || '').slice(0, 600), candidates };

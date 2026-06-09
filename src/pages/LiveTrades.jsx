@@ -9,7 +9,7 @@ import InvestModal from '../components/InvestModal.jsx';
 import CloseTradeModal from '../components/CloseTradeModal.jsx';
 import { ErrorBanner, Empty, Skeletons } from '../components/States.jsx';
 
-export default function LiveTrades() {
+export default function LiveTrades({ paper = false }) {
   const [trades, setTrades] = useState([]);
   const [theses, setTheses] = useState([]);
   const [quotes, setQuotes] = useState({});
@@ -58,7 +58,7 @@ export default function LiveTrades() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [{ trades: t }, { theses: th }] = await Promise.all([api.getTrades(), api.getTheses()]);
+      const [{ trades: t }, { theses: th }] = await Promise.all([api.getTrades(!paper ? false : true), api.getTheses()]);
       setTrades(t || []);
       setTheses(th || []);
       const tickers = [...new Set((t || []).map((x) => x.ticker))];
@@ -68,7 +68,7 @@ export default function LiveTrades() {
     } finally {
       setLoading(false);
     }
-  }, [loadPrices]);
+  }, [loadPrices, paper]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -107,7 +107,7 @@ export default function LiveTrades() {
   }
 
   async function handleInvest(payload) {
-    await api.createTrade(payload);
+    await api.createTrade({ ...payload, is_paper: paper });
     setModalOpen(false);
     setLoading(true);
     await load();
@@ -223,10 +223,10 @@ export default function LiveTrades() {
     <div>
       <div className="page-head" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div className="page-kicker">Open Positions</div>
-          <h1 className="page-title">Live Trades</h1>
+          <div className="page-kicker">{paper ? 'Paper Portfolio' : 'Open Positions'}</div>
+          <h1 className="page-title">{paper ? 'Paper Trades' : 'Live Trades'}</h1>
           {!loading && trades.length > 0 && (
-            <p className="page-sub mono">{trades.length} position{trades.length !== 1 ? 's' : ''} · {fmtMoney(totalInvested)} invested</p>
+            <p className="page-sub mono">{trades.length} position{trades.length !== 1 ? 's' : ''} · {fmtMoney(totalInvested)} {paper ? 'on paper' : 'invested'}</p>
           )}
           {!loading && bestThesis && (
             <p className="summary-line">
@@ -253,8 +253,8 @@ export default function LiveTrades() {
       {loading ? (
         <Skeletons count={3} className="grid grid-trades" />
       ) : trades.length === 0 ? (
-        <Empty icon="◎" title="No open positions">
-          <p>Open a position from a thesis on the Research page, or add one directly.</p>
+        <Empty icon="◎" title={paper ? 'No paper positions' : 'No open positions'}>
+          <p>{paper ? 'Paper-trade ideas to validate the app without committing real money. Add one directly, or open one from a research candidate.' : 'Open a position from a thesis on the Research page, or add one directly.'}</p>
           <button className="btn btn-primary" onClick={() => { setModalInitial({}); setModalOpen(true); }}>+ New position</button>
         </Empty>
       ) : (

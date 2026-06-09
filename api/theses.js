@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('theses')
-        .select(`${FIELDS}, suggested_tickers(id, ticker, reasons_for, reasons_against), trades(id, ticker)`)
+        .select(`${FIELDS}, suggested_tickers(id, ticker, reasons_for, reasons_against, conviction), trades(id, ticker, is_paper)`)
         .order('created_at', { ascending: true });
       if (error) throw error;
       return sendJson(res, 200, { theses: data || [] });

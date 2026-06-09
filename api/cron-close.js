@@ -3,7 +3,7 @@
 // 2) Recompute thesis status once per day and store it on each position
 //    (so the Live Trades page reads cached status instead of calling AI on load).
 // Slice 3 will additionally push "Status Change" / "P&L Negative at close" to Telegram.
-import { getSupabase, getQuotes, sendJson, sendError } from './_lib.js';
+import { getSupabase, getQuotes, sendJson, sendError, addNotification } from './_lib.js';
 import { computeThesisStatus } from './_ai.js';
 
 const MAX_STATUS = 30; // cost guard per run
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const supabase = getSupabase();
     const { data: trades, error } = await supabase
       .from('trades')
-      .select('id, ticker, avg_cost, thesis_id, thesis:theses(name, description, cautious_criteria, break_criteria)');
+      .select('id, ticker, avg_cost, status_label, thesis_id, thesis:theses(name, description, cautious_criteria, break_criteria)');
     if (error) throw error;
 
     const open = trades || [];
@@ -52,6 +52,7 @@ export default async function handler(req, res) {
     let statusUpdated = 0;
     for (const trade of open.slice(0, MAX_STATUS)) {
       try {
+        const prevLabel = trade.status_label || null;
         const { label, rationale, conviction, signals } = await computeThesisStatus(trade);
         await supabase
           .from('trades')
@@ -63,6 +64,17 @@ export default async function handler(req, res) {
             status_updated_at: new Date().toISOString(),
           })
           .eq('id', trade.id);
+        if (label && prevLabel && label !== prevLabel) {
+          await addNotification(supabase, {
+            type: 'status_change',
+            title: `${trade.ticker}: ${prevLabel} → ${label}`,
+            body: rationale || '',
+            ticker: trade.ticker,
+            thesis_id: trade.thesis_id,
+            thesis_name: trade.thesis?.name || null,
+            meta: { from: prevLabel, to: label, conviction },
+          });
+        }
         statusUpdated += 1;
       } catch (e) {
         // skip this ticker; keep going

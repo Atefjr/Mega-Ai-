@@ -5,6 +5,7 @@ import { fmtPct, signClass } from '../lib/format.js';
 import { ErrorBanner, Empty } from '../components/States.jsx';
 import InvestModal from '../components/InvestModal.jsx';
 import ThesisModal from '../components/ThesisModal.jsx';
+import ConfidenceScore from '../components/ConfidenceScore.jsx';
 import HalalBadge from '../components/HalalBadge.jsx';
 
 function PerfChip({ perf }) {
@@ -20,7 +21,7 @@ function PerfChip({ perf }) {
   );
 }
 
-function CandidateRow({ c, onInvest, onAnalyze, status, onCycle, perf }) {
+function CandidateRow({ c, onInvest, onPaper, onAnalyze, status, onCycle, perf }) {
   return (
     <div className="candidate">
       <div className="candidate-head">
@@ -31,9 +32,15 @@ function CandidateRow({ c, onInvest, onAnalyze, status, onCycle, perf }) {
         </span>
         <span className="chip-row">
           <button className="btn btn-sm" onClick={() => onAnalyze(c.ticker)} title="Full analysis">Analyze</button>
+          <button className="btn btn-sm" onClick={() => onPaper(c.ticker)} title="Track on paper">Paper</button>
           <button className="btn btn-sm btn-primary" onClick={() => onInvest(c.ticker)}>Invest</button>
         </span>
       </div>
+      {c.conviction != null && (
+        <div style={{ maxWidth: 220, marginBottom: 10 }}>
+          <ConfidenceScore conviction={c.conviction} compact />
+        </div>
+      )}
       <div className="pro-con">
         <div className="pc for">
           <div className="pc-label">Case for</div>
@@ -65,6 +72,7 @@ export default function ResearchThesis() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitial, setModalInitial] = useState({});
+  const [investPaper, setInvestPaper] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -115,7 +123,7 @@ export default function ResearchThesis() {
   async function loadHeldReturns(th) {
     try {
       const { trades } = await api.getTrades();
-      const mine = (trades || []).filter((t) => t.thesis_id === th.id);
+      const mine = (trades || []).filter((t) => t.thesis_id === th.id && !t.is_paper);
       if (!mine.length) return;
       const syms = [...new Set(mine.map((t) => t.ticker))];
       const { quotes } = await api.getQuotes(syms);
@@ -165,14 +173,21 @@ export default function ResearchThesis() {
   }
 
   function invest(ticker) {
+    setInvestPaper(false);
+    setModalInitial({ ticker, thesis_id: id });
+    setModalOpen(true);
+  }
+
+  function paperTrade(ticker) {
+    setInvestPaper(true);
     setModalInitial({ ticker, thesis_id: id });
     setModalOpen(true);
   }
 
   async function handleInvest(payload) {
-    await api.createTrade(payload);
+    await api.createTrade({ ...payload, is_paper: investPaper });
     setModalOpen(false);
-    navigate(`/live?highlight=${encodeURIComponent(payload.ticker)}`);
+    navigate(`${investPaper ? '/paper' : '/live'}?highlight=${encodeURIComponent(payload.ticker)}`);
   }
 
   async function handleEdit(fields) {
@@ -193,7 +208,7 @@ export default function ResearchThesis() {
     );
   }
 
-  const live = thesis.trades || [];
+  const live = (thesis.trades || []).filter((t) => !t.is_paper);
   const suggested = thesis.suggested_tickers || [];
 
   return (
@@ -264,7 +279,7 @@ export default function ResearchThesis() {
         <div className="card research-result">
           <div className="chips-label" style={{ marginBottom: 6 }}>Suggested for this thesis</div>
           {suggested.map((s) => (
-            <CandidateRow key={s.id} c={s} onInvest={invest} onAnalyze={(tk) => navigate(`/analyze?ticker=${tk}`)} status={meta[s.ticker]?.halal_status} onCycle={(next) => cycleHalal(s.ticker, next)} perf={perf[s.ticker]} />
+            <CandidateRow key={s.id} c={s} onInvest={invest} onPaper={paperTrade} onAnalyze={(tk) => navigate(`/analyze?ticker=${tk}`)} status={meta[s.ticker]?.halal_status} onCycle={(next) => cycleHalal(s.ticker, next)} perf={perf[s.ticker]} />
           ))}
         </div>
       )}
@@ -273,7 +288,7 @@ export default function ResearchThesis() {
         <div className="card research-result">
           {result.summary && <p className="thesis-desc" style={{ marginBottom: 10 }}>{result.summary}</p>}
           {(result.candidates || []).map((c, i) => (
-            <CandidateRow key={i} c={c} onInvest={invest} onAnalyze={(tk) => navigate(`/analyze?ticker=${tk}`)} status={meta[c.ticker]?.halal_status} onCycle={(next) => cycleHalal(c.ticker, next)} perf={perf[c.ticker]} />
+            <CandidateRow key={i} c={c} onInvest={invest} onPaper={paperTrade} onAnalyze={(tk) => navigate(`/analyze?ticker=${tk}`)} status={meta[c.ticker]?.halal_status} onCycle={(next) => cycleHalal(c.ticker, next)} perf={perf[c.ticker]} />
           ))}
         </div>
       )}
@@ -290,7 +305,7 @@ export default function ResearchThesis() {
         onSubmit={handleInvest}
         theses={theses}
         initial={modalInitial}
-        title={modalInitial.ticker ? `Invest — ${modalInitial.ticker}` : 'New position'}
+        title={modalInitial.ticker ? `${investPaper ? 'Paper trade' : 'Invest'} — ${modalInitial.ticker}` : 'New position'}
       />
 
       <ThesisModal
