@@ -41,7 +41,7 @@ export const api = {
   listAnalyses: () => request('/api/analyze'),
   getTickerPerf: (symbols) => {
     const list = Array.isArray(symbols) ? symbols.join(',') : symbols;
-    return request(`/api/ticker-perf${list ? `?symbols=${encodeURIComponent(list)}` : ''}`);
+    return request(`/api/market?kind=perf${list ? `&symbols=${encodeURIComponent(list)}` : ''}`);
   },
 
   getNotifications: () => request('/api/notifications'),
@@ -53,17 +53,17 @@ export const api = {
   getQuotes: (symbols) => {
     const list = Array.isArray(symbols) ? symbols.join(',') : symbols;
     if (!list) return Promise.resolve({ quotes: {} });
-    return request(`/api/quotes?symbols=${encodeURIComponent(list)}`);
+    return request(`/api/market?kind=quotes&symbols=${encodeURIComponent(list)}`);
   },
   getNews: (symbol, limit = 3) =>
-    request(`/api/news?symbol=${encodeURIComponent(symbol)}&limit=${limit}`),
+    request(`/api/market?kind=news&symbol=${encodeURIComponent(symbol)}&limit=${limit}`),
 
   getTickerMeta: (symbols) => {
     const list = Array.isArray(symbols) ? symbols.join(',') : symbols;
-    return request(`/api/ticker-meta${list ? `?symbols=${encodeURIComponent(list)}` : ''}`);
+    return request(`/api/market?kind=meta${list ? `&symbols=${encodeURIComponent(list)}` : ''}`);
   },
   setTickerMeta: (symbol, halal_status) =>
-    request('/api/ticker-meta', { method: 'POST', body: JSON.stringify({ symbol, halal_status }) }),
+    request('/api/market?kind=meta', { method: 'POST', body: JSON.stringify({ kind: 'meta', symbol, halal_status }) }),
 
   research: ({ name, description, thesis_id, exclude } = {}) =>
     request('/api/ai', {
