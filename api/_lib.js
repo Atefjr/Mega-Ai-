@@ -167,6 +167,14 @@ export async function getRecommendationTrends(symbol) {
   return Array.isArray(data) && data.length ? data[0] : null; // most recent period
 }
 
+export async function getCompanyProfile(symbol) {
+  const token = finnhubKey();
+  const url = `${FINNHUB_BASE}/stock/profile2?symbol=${encodeURIComponent(symbol)}&token=${token}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Finnhub profile failed for ${symbol} (${res.status})`);
+  return res.json(); // { name, finnhubIndustry, marketCapitalization, country, weburl, ... }
+}
+
 // ---------- Anthropic ----------
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 

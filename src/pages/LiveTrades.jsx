@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { fmtMoney, fmtSignedMoney, fmtPct, fmtPrice, fmtDate, signClass, positionStats } from '../lib/format.js';
 import StatusBadge from '../components/StatusBadge.jsx';
+import ConfidenceScore from '../components/ConfidenceScore.jsx';
 import HalalBadge from '../components/HalalBadge.jsx';
 import InvestModal from '../components/InvestModal.jsx';
 import CloseTradeModal from '../components/CloseTradeModal.jsx';
@@ -171,10 +172,52 @@ export default function LiveTrades() {
     }
   }
 
+  const [sortBy, setSortBy] = useState('default');
+
   const totalInvested = useMemo(
     () => trades.reduce((s, t) => s + Number(t.amount_invested || 0), 0),
     [trades]
   );
+
+  const enriched = useMemo(
+    () => trades.map((t) => {
+      const price = quotes[t.ticker]?.current ?? null;
+      const st = positionStats(t, price);
+      return { trade: t, returnPct: st.returnPct, pnl: st.pnl };
+    }),
+    [trades, quotes]
+  );
+
+  const sortedTrades = useMemo(() => {
+    const arr = [...enriched];
+    const num = (v) => (v == null || Number.isNaN(v) ? -Infinity : v);
+    switch (sortBy) {
+      case 'return': arr.sort((a, b) => num(b.returnPct) - num(a.returnPct)); break;
+      case 'pnl': arr.sort((a, b) => num(b.pnl) - num(a.pnl)); break;
+      case 'conviction': arr.sort((a, b) => num(b.trade.status_conviction) - num(a.trade.status_conviction)); break;
+      case 'ticker': arr.sort((a, b) => a.trade.ticker.localeCompare(b.trade.ticker)); break;
+      case 'thesis': arr.sort((a, b) => (a.trade.thesis?.name || '').localeCompare(b.trade.thesis?.name || '')); break;
+      default: break;
+    }
+    return arr;
+  }, [enriched, sortBy]);
+
+  const bestThesis = useMemo(() => {
+    const byThesis = {};
+    for (const e of enriched) {
+      const name = e.trade.thesis?.name;
+      if (!name || e.pnl == null) continue;
+      const amt = Number(e.trade.amount_invested || 0);
+      byThesis[name] = byThesis[name] || { name, icon: e.trade.thesis?.icon || '', invested: 0, pnl: 0 };
+      byThesis[name].invested += amt;
+      byThesis[name].pnl += e.pnl;
+    }
+    const arr = Object.values(byThesis)
+      .filter((t) => t.invested > 0)
+      .map((t) => ({ ...t, returnPct: (t.pnl / t.invested) * 100 }))
+      .sort((a, b) => b.returnPct - a.returnPct);
+    return arr[0] || null;
+  }, [enriched]);
 
   return (
     <div>
@@ -184,6 +227,12 @@ export default function LiveTrades() {
           <h1 className="page-title">Live Trades</h1>
           {!loading && trades.length > 0 && (
             <p className="page-sub mono">{trades.length} position{trades.length !== 1 ? 's' : ''} · {fmtMoney(totalInvested)} invested</p>
+          )}
+          {!loading && bestThesis && (
+            <p className="summary-line">
+              Top thesis: <b>{bestThesis.icon} {bestThesis.name}</b>
+              <span className={`perf-chip ${signClass(bestThesis.returnPct)}`}>{fmtPct(bestThesis.returnPct)}</span>
+            </p>
           )}
         </div>
         {!loading && trades.length > 0 && (
@@ -209,8 +258,20 @@ export default function LiveTrades() {
           <button className="btn btn-primary" onClick={() => { setModalInitial({}); setModalOpen(true); }}>+ New position</button>
         </Empty>
       ) : (
-        <div className="grid grid-trades">
-          {trades.map((trade, i) => {
+        <>
+          <div className="controls-row">
+            <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>Sort</span>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="default">Default</option>
+              <option value="return">Return %</option>
+              <option value="pnl">Live P&amp;L</option>
+              <option value="conviction">Conviction</option>
+              <option value="thesis">Thesis</option>
+              <option value="ticker">Ticker</option>
+            </select>
+          </div>
+          <div className="grid grid-trades">
+          {sortedTrades.map(({ trade }, i) => {
             const q = quotes[trade.ticker] || {};
             const price = q.current ?? null;
             const stats = positionStats(trade, price);
@@ -268,6 +329,8 @@ export default function LiveTrades() {
                   </div>
                 )}
 
+                <ConfidenceScore conviction={trade.status_conviction} signals={trade.status_signals} />
+
                 <div className="news">
                   <div className="news-head">Latest news</div>
                   {tNews.length === 0 ? (
@@ -285,6 +348,9 @@ export default function LiveTrades() {
 
                 <div className="actions">
                   <button className="btn btn-sm" onClick={() => openNewPurchase(trade)}>+ Buy more</button>
+                  <button className="btn btn-sm" onClick={() => navigate(`/analyze?ticker=${trade.ticker}`)} title="Full analysis">
+                    Analyze
+                  </button>
                   <button
                     className="btn btn-sm"
                     disabled={!trade.thesis_id}
@@ -308,7 +374,8 @@ export default function LiveTrades() {
               </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
 
       <InvestModal

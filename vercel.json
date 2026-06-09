@@ -5,6 +5,7 @@
   ],
   "functions": {
     "api/ai.js": { "maxDuration": 60 },
+    "api/analyze.js": { "maxDuration": 60 },
     "api/refresh-status.js": { "maxDuration": 60 },
     "api/cron-close.js": { "maxDuration": 60 }
   },

@@ -1,7 +1,7 @@
 {
   "name": "stock-mega-ai",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Stock Mega AI - thesis-driven stock tracking dashboard (Slice 1: UI + live data + persistence, AI stubbed)",
   "scripts": {

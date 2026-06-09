@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('trades')
-        .select('id, ticker, amount_invested, avg_cost, shares, purchased_at, status_label, status_rationale, status_updated_at, thesis_id, thesis:theses(id, name, icon)')
+        .select('id, ticker, amount_invested, avg_cost, shares, purchased_at, status_label, status_rationale, status_conviction, status_signals, status_updated_at, thesis_id, thesis:theses(id, name, icon)')
         .order('created_at', { ascending: true });
       if (error) throw error;
       return sendJson(res, 200, { trades: data || [] });

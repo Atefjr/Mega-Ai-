@@ -1,19 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { fmtPct, signClass } from '../lib/format.js';
 import { ErrorBanner, Empty } from '../components/States.jsx';
 import InvestModal from '../components/InvestModal.jsx';
+import ThesisModal from '../components/ThesisModal.jsx';
 import HalalBadge from '../components/HalalBadge.jsx';
 
-function CandidateRow({ c, onInvest, status, onCycle }) {
+function PerfChip({ perf }) {
+  if (!perf) return null;
+  const oneY = perf.oneYear;
+  return (
+    <span className="perf-inline">
+      <span className="perf-k">1Y</span>
+      {oneY == null ? <span className="perf-v muted">—</span> : <span className={`perf-v mono ${signClass(oneY)}`}>{fmtPct(oneY)}</span>}
+      <span className="perf-k" style={{ marginLeft: 8 }}>5Y</span>
+      <span className="perf-v muted" title="5-year history needs a paid data tier (see Settings)">—</span>
+    </span>
+  );
+}
+
+function CandidateRow({ c, onInvest, onAnalyze, status, onCycle, perf }) {
   return (
     <div className="candidate">
       <div className="candidate-head">
         <span className="ticker-line">
           <HalalBadge status={status} onCycle={onCycle} size={17} />
           <span className="candidate-ticker mono">{c.ticker}</span>
+          <PerfChip perf={perf} />
         </span>
-        <button className="btn btn-sm btn-primary" onClick={() => onInvest(c.ticker)}>Invest</button>
+        <span className="chip-row">
+          <button className="btn btn-sm" onClick={() => onAnalyze(c.ticker)} title="Full analysis">Analyze</button>
+          <button className="btn btn-sm btn-primary" onClick={() => onInvest(c.ticker)}>Invest</button>
+        </span>
       </div>
       <div className="pro-con">
         <div className="pc for">
@@ -36,6 +55,8 @@ export default function ResearchThesis() {
   const [thesis, setThesis] = useState(null);
   const [theses, setTheses] = useState([]);
   const [meta, setMeta] = useState({});
+  const [perf, setPerf] = useState({});
+  const [heldReturns, setHeldReturns] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -44,6 +65,7 @@ export default function ResearchThesis() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitial, setModalInitial] = useState({});
+  const [editOpen, setEditOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -53,13 +75,11 @@ export default function ResearchThesis() {
       const th = (t || []).find((x) => x.id === id) || null;
       setThesis(th);
       if (th) {
-        const symbols = [
-          ...new Set([
-            ...(th.trades || []).map((x) => x.ticker),
-            ...(th.suggested_tickers || []).map((x) => x.ticker),
-          ]),
-        ];
-        await fetchMeta(symbols);
+        const suggestedSyms = (th.suggested_tickers || []).map((x) => x.ticker);
+        const heldSyms = (th.trades || []).map((x) => x.ticker);
+        await fetchMeta([...new Set([...heldSyms, ...suggestedSyms])]);
+        loadPerf(suggestedSyms);
+        loadHeldReturns(th);
       }
     } catch (err) {
       setError(err);
@@ -76,6 +96,36 @@ export default function ResearchThesis() {
     try {
       const { meta: m } = await api.getTickerMeta(list);
       setMeta((prev) => ({ ...prev, ...(m || {}) }));
+    } catch {
+      /* non-critical */
+    }
+  }
+
+  async function loadPerf(symbols) {
+    const list = [...new Set((symbols || []).filter(Boolean))];
+    if (!list.length) return;
+    try {
+      const { perf: p } = await api.getTickerPerf(list);
+      setPerf((prev) => ({ ...prev, ...(p || {}) }));
+    } catch {
+      /* non-critical */
+    }
+  }
+
+  async function loadHeldReturns(th) {
+    try {
+      const { trades } = await api.getTrades();
+      const mine = (trades || []).filter((t) => t.thesis_id === th.id);
+      if (!mine.length) return;
+      const syms = [...new Set(mine.map((t) => t.ticker))];
+      const { quotes } = await api.getQuotes(syms);
+      const map = {};
+      for (const t of mine) {
+        const price = quotes[t.ticker]?.current ?? null;
+        const avg = Number(t.avg_cost);
+        map[t.ticker] = price && avg ? (price / avg - 1) * 100 : null;
+      }
+      setHeldReturns(map);
     } catch {
       /* non-critical */
     }
@@ -104,7 +154,9 @@ export default function ResearchThesis() {
         exclude: held,
       });
       setResult(r);
-      await fetchMeta((r?.candidates || []).map((c) => c.ticker));
+      const syms = (r?.candidates || []).map((c) => c.ticker);
+      await fetchMeta(syms);
+      loadPerf(syms);
     } catch (err) {
       setError(err);
     } finally {
@@ -121,6 +173,12 @@ export default function ResearchThesis() {
     await api.createTrade(payload);
     setModalOpen(false);
     navigate(`/live?highlight=${encodeURIComponent(payload.ticker)}`);
+  }
+
+  async function handleEdit(fields) {
+    await api.updateThesis({ id, ...fields });
+    setEditOpen(false);
+    await load();
   }
 
   if (loading) {
@@ -144,16 +202,35 @@ export default function ResearchThesis() {
 
       <ErrorBanner error={error} />
 
-      <div className="detail-head">
-        <div className="detail-icon">{thesis.icon || '📈'}</div>
-        <div>
-          <div className="page-kicker">Thesis</div>
-          <h1 className="page-title">{thesis.name}</h1>
+      <div className="detail-head" style={{ justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="detail-icon">{thesis.icon || '📈'}</div>
+          <div>
+            <div className="page-kicker">Thesis</div>
+            <h1 className="page-title">{thesis.name}</h1>
+          </div>
         </div>
+        <button className="btn btn-sm" onClick={() => setEditOpen(true)}>✎ Edit</button>
       </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 18 }}>
         <div className="thesis-desc">{thesis.description || 'No description yet.'}</div>
+        {(thesis.cautious_criteria || thesis.break_criteria) && (
+          <div className="criteria">
+            {thesis.cautious_criteria && (
+              <div className="criteria-item cautious">
+                <div className="criteria-label">Turns cautious if</div>
+                <div className="criteria-body">{thesis.cautious_criteria}</div>
+              </div>
+            )}
+            {thesis.break_criteria && (
+              <div className="criteria-item broken">
+                <div className="criteria-label">Breaks if</div>
+                <div className="criteria-body">{thesis.break_criteria}</div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="chips-block" style={{ marginBottom: 22 }}>
@@ -162,12 +239,16 @@ export default function ResearchThesis() {
           <div className="news-empty">None held yet.</div>
         ) : (
           <div className="chips">
-            {live.map((t) => (
-              <button key={t.id} className="chip" onClick={() => navigate(`/live?highlight=${encodeURIComponent(t.ticker)}`)}>
-                <HalalBadge status={meta[t.ticker]?.halal_status} size={13} />
-                {t.ticker}
-              </button>
-            ))}
+            {live.map((t) => {
+              const r = heldReturns[t.ticker];
+              return (
+                <button key={t.id} className="chip" onClick={() => navigate(`/live?highlight=${encodeURIComponent(t.ticker)}`)}>
+                  <HalalBadge status={meta[t.ticker]?.halal_status} size={13} />
+                  {t.ticker}
+                  {r != null && <span className={`perf-chip ${signClass(r)}`}>{fmtPct(r)}</span>}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -179,23 +260,20 @@ export default function ResearchThesis() {
         </button>
       </div>
 
-      {/* Seeded / existing suggestions */}
       {suggested.length > 0 && (
         <div className="card research-result">
           <div className="chips-label" style={{ marginBottom: 6 }}>Suggested for this thesis</div>
           {suggested.map((s) => (
-            <CandidateRow key={s.id} c={s} onInvest={invest} status={meta[s.ticker]?.halal_status} onCycle={(next) => cycleHalal(s.ticker, next)} />
+            <CandidateRow key={s.id} c={s} onInvest={invest} onAnalyze={(tk) => navigate(`/analyze?ticker=${tk}`)} status={meta[s.ticker]?.halal_status} onCycle={(next) => cycleHalal(s.ticker, next)} perf={perf[s.ticker]} />
           ))}
         </div>
       )}
 
-      {/* Fresh AI research output */}
       {result && (
         <div className="card research-result">
-          {result.stub && <div className="stub-note">⚙ Placeholder output — Claude-generated research is wired in Slice 2.</div>}
           {result.summary && <p className="thesis-desc" style={{ marginBottom: 10 }}>{result.summary}</p>}
           {(result.candidates || []).map((c, i) => (
-            <CandidateRow key={i} c={c} onInvest={invest} status={meta[c.ticker]?.halal_status} onCycle={(next) => cycleHalal(c.ticker, next)} />
+            <CandidateRow key={i} c={c} onInvest={invest} onAnalyze={(tk) => navigate(`/analyze?ticker=${tk}`)} status={meta[c.ticker]?.halal_status} onCycle={(next) => cycleHalal(c.ticker, next)} perf={perf[c.ticker]} />
           ))}
         </div>
       )}
@@ -213,6 +291,14 @@ export default function ResearchThesis() {
         theses={theses}
         initial={modalInitial}
         title={modalInitial.ticker ? `Invest — ${modalInitial.ticker}` : 'New position'}
+      />
+
+      <ThesisModal
+        open={editOpen}
+        mode="edit"
+        initial={thesis}
+        onClose={() => setEditOpen(false)}
+        onSubmit={handleEdit}
       />
     </div>
   );

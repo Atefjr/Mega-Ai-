@@ -12,6 +12,9 @@ create table if not exists theses (
   name          text not null,
   icon          text default '📈',
   description   text default '',                 -- thesis written out
+  cautious_criteria text default '',              -- what would make it cautious
+  break_criteria    text default '',              -- what would break it
+  example_ticker    text default '',              -- representative ticker
   created_at    timestamptz not null default now()
 );
 
@@ -28,6 +31,8 @@ create table if not exists trades (
   -- thesis status (filled by AI in Slice 2; null for now)
   status_label     text check (status_label in ('Intact', 'Cautious', 'Broken')),
   status_rationale text,
+  status_conviction smallint,                     -- 0-100 conviction score
+  status_signals   jsonb,                          -- {execution, price, sentiment}
   status_updated_at timestamptz,
   created_at       timestamptz not null default now()
 );
@@ -83,4 +88,11 @@ create table if not exists ticker_meta (
   halal_status text not null default 'unknown' check (halal_status in ('halal', 'not_halal', 'unknown')),
   note         text default '',
   updated_at   timestamptz not null default now()
+);
+
+-- Cache for the stock analysis page (Slice 3)
+create table if not exists stock_analyses (
+  ticker     text primary key,
+  data       jsonb not null,
+  created_at timestamptz not null default now()
 );

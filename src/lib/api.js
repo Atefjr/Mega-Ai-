@@ -26,8 +26,18 @@ export const api = {
 
   getTheses: () => request('/api/theses'),
   createThesis: (payload) => request('/api/theses', { method: 'POST', body: JSON.stringify(payload) }),
+  updateThesis: (payload) => request('/api/theses', { method: 'PATCH', body: JSON.stringify(payload) }),
 
   getHistory: () => request('/api/history'),
+  updateHistory: (payload) => request('/api/history', { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteHistory: (id) => request(`/api/history?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  analyze: ({ ticker, force } = {}) =>
+    request('/api/analyze', { method: 'POST', body: JSON.stringify({ ticker, force }) }),
+  getTickerPerf: (symbols) => {
+    const list = Array.isArray(symbols) ? symbols.join(',') : symbols;
+    return request(`/api/ticker-perf${list ? `?symbols=${encodeURIComponent(list)}` : ''}`);
+  },
 
   getQuotes: (symbols) => {
     const list = Array.isArray(symbols) ? symbols.join(',') : symbols;

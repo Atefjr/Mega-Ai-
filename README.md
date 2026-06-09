@@ -2,24 +2,37 @@
 
 A thesis-driven stock-tracking dashboard. The full UI, real US market data
 (prices + news), and persistence are live, and so is the AI layer: **thesis
-status** (Claude Haiku 4.5) and **theme research** (Claude Sonnet 4.6 + web
-search). Telegram notifications come next.
+status + conviction score** (Claude Haiku 4.5), **theme research** and a
+**stock analysis** deep-dive (Claude Sonnet 4.6 + web search). Telegram
+notifications come next.
 
-Three pages:
+Pages:
 - **Live Trades** — one widget per open position: live price + day move, return
-  since purchase, live P&L, thesis + status badge, latest news, amount invested,
-  and actions (buy more / go to research / close trade).
-- **Research** — clickable thesis widgets showing held tickers and suggested
-  tickers; opening one shows the write-up and an AI research action.
-- **History** — list of closed trades with realized performance and timeline.
+  since purchase, live P&L, thesis + status badge, a 0–100 conviction score,
+  latest news, amount invested, and actions (buy more / analyze / research /
+  re-check / close). Sortable by return, P&L, conviction, thesis or ticker, with
+  a best-performing-thesis summary line up top.
+- **Research** — clickable thesis widgets; opening one shows the write-up plus its
+  cautious/breaks conditions, held tickers with all-time return, and AI candidates
+  (each with 1-year performance, an Analyze button and an Invest button). Theses
+  are editable, including the cautious/breaks conditions that sharpen status scoring.
+- **Analyze** — plug in a US ticker for a high-level, buy-side-style read: verdict,
+  valuation, growth, profitability, balance sheet, moat, bull/bear case, risks and
+  what to watch. Cached for 24h per ticker to keep cost down. Decision support, not
+  financial advice.
+- **History** — closed trades with realized performance and timeline; rows are
+  editable and deletable, and the summary ranks your best-performing theses.
+- **Settings** — light/dark theme, a toggle to hide the conviction score, a debug
+  panel with an API health check, the daily-refresh and 5-year-data notes, and
+  account/billing placeholders for if you ever open it to other users. Version is
+  shown in the footer on every page.
 
 Every ticker shows a **halal indicator** — a crescent moon (halal), a struck-out
-moon (not halal), or a faint outline (not set). In this slice the status is one
-you set yourself: click the moon to cycle not-set → halal → not-halal. It's stored
-per symbol, so it appears everywhere that ticker shows up. There is no reliable
-Sharia-compliance flag in the market-data feed, so nothing is auto-judged; a later
-slice can populate it from a screening provider (e.g. Zoya, Musaffa, IdealRatings)
-or from computed AAOIFI-style ratios.
+moon (not halal), or a faint outline (not set). You set it yourself: click the moon
+to cycle not-set → halal → not-halal. It's stored per symbol, so it appears
+everywhere that ticker shows up. There is no reliable Sharia-compliance flag in the
+market-data feed, so nothing is auto-judged; a later slice can populate it from a
+screening provider (e.g. Zoya, Musaffa, IdealRatings) or computed AAOIFI-style ratios.
 
 ## Stack
 
@@ -43,6 +56,10 @@ npm install
 ### 2. Supabase
 1. Create a project at https://supabase.com.
 2. In **SQL Editor**, run `supabase/schema.sql`.
+   - **Already have a database from an earlier version?** Don't re-run the whole
+     schema — instead run `supabase/migration_slice3.sql`, which adds the new
+     thesis criteria columns, the conviction fields, and the `stock_analyses`
+     cache table. It's safe to run more than once.
 3. (Optional) run `supabase/seed.sql` to populate sample theses + an NVDA position
    so the dashboard isn't empty on first load.
 4. In **Project Settings → API**, copy the **Project URL** and the

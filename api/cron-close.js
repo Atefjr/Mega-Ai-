@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const supabase = getSupabase();
     const { data: trades, error } = await supabase
       .from('trades')
-      .select('id, ticker, avg_cost, thesis_id, thesis:theses(name, description)');
+      .select('id, ticker, avg_cost, thesis_id, thesis:theses(name, description, cautious_criteria, break_criteria)');
     if (error) throw error;
 
     const open = trades || [];
@@ -52,10 +52,16 @@ export default async function handler(req, res) {
     let statusUpdated = 0;
     for (const trade of open.slice(0, MAX_STATUS)) {
       try {
-        const { label, rationale } = await computeThesisStatus(trade);
+        const { label, rationale, conviction, signals } = await computeThesisStatus(trade);
         await supabase
           .from('trades')
-          .update({ status_label: label, status_rationale: rationale, status_updated_at: new Date().toISOString() })
+          .update({
+            status_label: label,
+            status_rationale: rationale,
+            status_conviction: conviction,
+            status_signals: signals,
+            status_updated_at: new Date().toISOString(),
+          })
           .eq('id', trade.id);
         statusUpdated += 1;
       } catch (e) {
