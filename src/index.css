@@ -548,3 +548,13 @@ table.history tbody tr:hover { background: rgba(255,255,255,.02); }
 .recent-verdict.cautious { color: var(--amber); background: var(--amber-dim); }
 .recent-verdict.broken { color: var(--red); background: var(--red-dim); }
 .recent-date { font-size: 11px; color: var(--text-faint); }
+
+/* ---------- access-code gate ---------- */
+.gate { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.gate-card { width: 100%; max-width: 420px; padding: 32px 28px; text-align: center; }
+.gate-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 22px; }
+.gate-title { font-family: var(--font-display); font-size: 24px; margin: 0 0 8px; letter-spacing: -0.02em; }
+.gate-sub { color: var(--text-dim); font-size: 13.5px; line-height: 1.55; margin: 0 0 20px; }
+.gate-input { width: 100%; padding: 12px 14px; border-radius: 11px; background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text); font-size: 16px; text-align: center; letter-spacing: 0.04em; }
+.gate-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.gate-btn { width: 100%; margin-top: 16px; justify-content: center; }

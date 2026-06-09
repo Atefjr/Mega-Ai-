@@ -1,4 +1,4 @@
-import { getSupabase, sendJson, sendError } from './_lib.js';
+import { getSupabase, sendJson, sendError, getWorkspace } from './_lib.js';
 
 const FIELDS = 'id, name, icon, description, cautious_criteria, break_criteria, example_ticker, created_at';
 
@@ -15,12 +15,15 @@ function pickThesisFields(body) {
 
 export default async function handler(req, res) {
   try {
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('theses')
         .select(`${FIELDS}, suggested_tickers(id, ticker, reasons_for, reasons_against, conviction), trades(id, ticker, is_paper)`)
+        .eq('workspace', ws)
         .order('created_at', { ascending: true });
       if (error) throw error;
       return sendJson(res, 200, { theses: data || [] });
@@ -31,6 +34,7 @@ export default async function handler(req, res) {
       const fields = pickThesisFields(body);
       if (!fields.name) return sendJson(res, 400, { error: 'name is required' });
       if (!fields.icon) fields.icon = '📈';
+      fields.workspace = ws;
       const { data, error } = await supabase.from('theses').insert(fields).select(FIELDS).single();
       if (error) throw error;
       return sendJson(res, 201, { thesis: data });
@@ -43,7 +47,13 @@ export default async function handler(req, res) {
       const fields = pickThesisFields(body);
       delete fields.id;
       if (Object.keys(fields).length === 0) return sendJson(res, 400, { error: 'no fields to update' });
-      const { data, error } = await supabase.from('theses').update(fields).eq('id', id).select(FIELDS).single();
+      const { data, error } = await supabase
+        .from('theses')
+        .update(fields)
+        .eq('id', id)
+        .eq('workspace', ws)
+        .select(FIELDS)
+        .single();
       if (error) throw error;
       return sendJson(res, 200, { thesis: data });
     }

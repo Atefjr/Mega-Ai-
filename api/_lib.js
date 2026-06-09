@@ -235,6 +235,13 @@ export function extractJson(text) {
   return null;
 }
 
+// ---------- Workspaces (access-code isolation) ----------
+export function getWorkspace(req) {
+  const h = req.headers ? req.headers['x-workspace-code'] : null;
+  const q = req.query ? req.query.workspace : null;
+  return (h || q || '').toString().trim();
+}
+
 // ---------- Notifications ----------
 export async function addNotification(supabase, n) {
   try {
@@ -246,6 +253,7 @@ export async function addNotification(supabase, n) {
       thesis_id: n.thesis_id || null,
       thesis_name: n.thesis_name || null,
       meta: n.meta || null,
+      workspace: n.workspace || '',
     });
   } catch (e) {
     console.error('notification insert failed:', e.message || e);

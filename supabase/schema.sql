@@ -15,6 +15,7 @@ create table if not exists theses (
   cautious_criteria text default '',              -- what would make it cautious
   break_criteria    text default '',              -- what would break it
   example_ticker    text default '',              -- representative ticker
+  workspace     text not null default '',          -- access-code workspace
   created_at    timestamptz not null default now()
 );
 
@@ -35,6 +36,7 @@ create table if not exists trades (
   status_signals   jsonb,                          -- {execution, price, sentiment}
   status_updated_at timestamptz,
   is_paper         boolean not null default false,  -- paper trade vs. real money
+  workspace        text not null default '',         -- access-code workspace
   created_at       timestamptz not null default now()
 );
 
@@ -49,6 +51,7 @@ create table if not exists suggested_tickers (
   reasons_for     text default '',
   reasons_against text default '',
   conviction      smallint,
+  workspace       text not null default '',
   created_at      timestamptz not null default now(),
   unique (thesis_id, ticker)
 );
@@ -66,6 +69,7 @@ create table if not exists history (
   performance_pct  numeric not null,
   purchased_at     date,
   is_paper         boolean not null default false,
+  workspace        text not null default '',
   closed_at        timestamptz not null default now()
 );
 
@@ -87,10 +91,19 @@ create table if not exists price_snapshots (
 -- halal_status is user-set in Slice 1 (no reliable Sharia flag in the data feed).
 -- A later slice can populate this from a screening provider or computed ratios.
 create table if not exists ticker_meta (
-  symbol       text primary key,
+  symbol       text not null,
+  workspace    text not null default '',
   halal_status text not null default 'unknown' check (halal_status in ('halal', 'not_halal', 'unknown')),
   note         text default '',
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  unique (workspace, symbol)
+);
+
+-- Access-code workspaces (Slice 5): a tester must enter a valid code to use the app.
+create table if not exists workspaces (
+  code       text primary key,
+  label      text default '',
+  created_at timestamptz not null default now()
 );
 
 -- Cache for the stock analysis page (Slice 3)
@@ -111,6 +124,7 @@ create table if not exists notifications (
   thesis_name text,
   meta        jsonb,
   read        boolean not null default false,
+  workspace   text not null default '',
   created_at  timestamptz not null default now()
 );
 create index if not exists notifications_created_idx on notifications(created_at desc);

@@ -1,7 +1,14 @@
+import { getWorkspaceCode, clearWorkspace } from './session.js';
+
 async function request(path, options = {}) {
+  const code = getWorkspaceCode();
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(code ? { 'x-workspace-code': code } : {}),
+      ...(options.headers || {}),
+    },
   });
   let data = null;
   try {
@@ -10,6 +17,8 @@ async function request(path, options = {}) {
     data = null;
   }
   if (!res.ok) {
+    // A stored code that's no longer valid (e.g. after a reset): drop back to login cleanly.
+    if (res.status === 401 && code) clearWorkspace();
     const err = new Error((data && data.error) || `Request failed (${res.status})`);
     err.status = res.status;
     err.code = data && data.code;
@@ -19,6 +28,7 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  checkWorkspace: (code) => request(`/api/workspace?code=${encodeURIComponent(code)}`),
   getTrades: (paper) => {
     const q = paper === true ? '?paper=true' : paper === false ? '?paper=false' : '';
     return request(`/api/trades${q}`);

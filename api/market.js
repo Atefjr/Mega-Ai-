@@ -1,10 +1,12 @@
-import { getQuotes, getCompanyNews, getBasicFinancials, getSupabase, sendJson, sendError } from './_lib.js';
+import { getQuotes, getCompanyNews, getBasicFinancials, getSupabase, sendJson, sendError, getWorkspace } from './_lib.js';
 
 const ALLOWED = ['halal', 'not_halal', 'unknown'];
 const splitSyms = (raw) => (raw || '').toString().trim().split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
 
 export default async function handler(req, res) {
   try {
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const kind = (req.query?.kind || (req.body && req.body.kind) || '').toString();
 
     if (req.method === 'GET') {
@@ -42,7 +44,7 @@ export default async function handler(req, res) {
       if (kind === 'meta') {
         const symbols = splitSyms(req.query?.symbols);
         const supabase = getSupabase();
-        let query = supabase.from('ticker_meta').select('symbol, halal_status, note');
+        let query = supabase.from('ticker_meta').select('symbol, halal_status, note').eq('workspace', ws);
         if (symbols.length) query = query.in('symbol', symbols);
         const { data, error } = await query;
         if (error) throw error;
@@ -62,8 +64,8 @@ export default async function handler(req, res) {
         if (!symbol) return sendJson(res, 400, { error: 'symbol is required' });
         if (!ALLOWED.includes(status)) return sendJson(res, 400, { error: 'invalid halal_status' });
         const supabase = getSupabase();
-        const row = { symbol, halal_status: status, note: (body.note || '').toString(), updated_at: new Date().toISOString() };
-        const { data, error } = await supabase.from('ticker_meta').upsert(row, { onConflict: 'symbol' }).select().single();
+        const row = { symbol, workspace: ws, halal_status: status, note: (body.note || '').toString(), updated_at: new Date().toISOString() };
+        const { data, error } = await supabase.from('ticker_meta').upsert(row, { onConflict: 'workspace,symbol' }).select().single();
         if (error) throw error;
         return sendJson(res, 200, { meta: data });
       }

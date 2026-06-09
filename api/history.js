@@ -1,4 +1,4 @@
-import { getSupabase, sendJson, sendError } from './_lib.js';
+import { getSupabase, sendJson, sendError, getWorkspace } from './_lib.js';
 
 // Recompute pnl and performance from the editable inputs so the row stays consistent.
 function recompute(row) {
@@ -15,12 +15,15 @@ function recompute(row) {
 
 export default async function handler(req, res) {
   try {
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('history')
         .select('*')
+        .eq('workspace', ws)
         .order('closed_at', { ascending: false });
       if (error) throw error;
       return sendJson(res, 200, { history: data || [] });
@@ -44,7 +47,7 @@ export default async function handler(req, res) {
       if (Object.keys(patch).length === 0) return sendJson(res, 400, { error: 'no fields to update' });
 
       // Pull current row, apply edits, recompute derived numbers, save.
-      const { data: cur, error: curErr } = await supabase.from('history').select('*').eq('id', id).single();
+      const { data: cur, error: curErr } = await supabase.from('history').select('*').eq('id', id).eq('workspace', ws).single();
       if (curErr) throw curErr;
       const merged = recompute({ ...cur, ...patch });
       const { data, error } = await supabase
@@ -61,6 +64,7 @@ export default async function handler(req, res) {
           closed_at: merged.closed_at,
         })
         .eq('id', id)
+        .eq('workspace', ws)
         .select()
         .single();
       if (error) throw error;
@@ -70,7 +74,7 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE') {
       const id = (req.query?.id || req.body?.id || '').toString();
       if (!id) return sendJson(res, 400, { error: 'id is required' });
-      const { error } = await supabase.from('history').delete().eq('id', id);
+      const { error } = await supabase.from('history').delete().eq('id', id).eq('workspace', ws);
       if (error) throw error;
       return sendJson(res, 200, { deleted: true });
     }

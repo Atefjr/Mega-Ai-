@@ -1,4 +1,4 @@
-import { getSupabase, sendJson, sendError, addNotification } from './_lib.js';
+import { getSupabase, sendJson, sendError, addNotification, getWorkspace } from './_lib.js';
 import { computeThesisStatus } from './_ai.js';
 
 // Cost guard: never classify more than this many positions in one manual run.
@@ -13,9 +13,12 @@ export default async function handler(req, res) {
     const supabase = getSupabase();
     const onlyId = (req.body?.id || '').toString();
 
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     let query = supabase
       .from('trades')
-      .select('id, ticker, avg_cost, status_label, thesis_id, thesis:theses(name, description, cautious_criteria, break_criteria)');
+      .select('id, ticker, avg_cost, status_label, thesis_id, thesis:theses(name, description, cautious_criteria, break_criteria)')
+      .eq('workspace', ws);
     if (onlyId) query = query.eq('id', onlyId);
 
     const { data: trades, error } = await query;
@@ -46,6 +49,7 @@ export default async function handler(req, res) {
             thesis_id: trade.thesis_id,
             thesis_name: trade.thesis?.name || null,
             meta: { from: prevLabel, to: label, conviction },
+            workspace: ws,
           });
         }
         results.push({ id: trade.id, ticker: trade.ticker, label, rationale, conviction, signals });

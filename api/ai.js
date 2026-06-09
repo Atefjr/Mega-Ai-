@@ -1,10 +1,12 @@
 // Theme research endpoint. Delegates to researchCandidates() in _ai.js, which
 // uses Claude Sonnet + a capped web search and tolerates web-search pause_turn.
-import { getSupabase, sendJson, sendError, addNotification } from './_lib.js';
+import { getSupabase, sendJson, sendError, addNotification, getWorkspace } from './_lib.js';
 import { researchCandidates } from './_ai.js';
 
 export default async function handler(req, res) {
   try {
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const type = (req.query?.type || (req.body && req.body.type) || '').toString();
     if (type !== 'research') {
       return sendJson(res, 400, { error: 'Unknown type. Use type=research.' });
@@ -27,7 +29,7 @@ export default async function handler(req, res) {
       // Which of these are genuinely new (for the notification)?
       let existing = [];
       try {
-        const { data } = await supabase.from('suggested_tickers').select('ticker').eq('thesis_id', body.thesis_id);
+        const { data } = await supabase.from('suggested_tickers').select('ticker').eq('thesis_id', body.thesis_id).eq('workspace', ws);
         existing = (data || []).map((r) => r.ticker);
       } catch {
         /* non-critical */
@@ -40,6 +42,7 @@ export default async function handler(req, res) {
         reasons_for: c.reasons_for,
         reasons_against: c.reasons_against,
         conviction: c.conviction ?? null,
+        workspace: ws,
       }));
       await supabase.from('suggested_tickers').upsert(rows, { onConflict: 'thesis_id,ticker' });
 
@@ -51,6 +54,7 @@ export default async function handler(req, res) {
           thesis_id: body.thesis_id,
           thesis_name: name,
           meta: { tickers: fresh.map((c) => c.ticker) },
+          workspace: ws,
         });
       }
     }

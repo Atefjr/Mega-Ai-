@@ -1,15 +1,18 @@
-import { getSupabase, sendJson, sendError } from './_lib.js';
+import { getSupabase, sendJson, sendError, getWorkspace } from './_lib.js';
 
 const IMPOSSIBLE_ID = '00000000-0000-0000-0000-000000000000';
 
 export default async function handler(req, res) {
   try {
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
+        .eq('workspace', ws)
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -20,26 +23,26 @@ export default async function handler(req, res) {
     if (req.method === 'PATCH') {
       const body = req.body || {};
       if (body.markAllRead) {
-        const { error } = await supabase.from('notifications').update({ read: true }).eq('read', false);
+        const { error } = await supabase.from('notifications').update({ read: true }).eq('workspace', ws).eq('read', false);
         if (error) throw error;
         return sendJson(res, 200, { ok: true });
       }
       const id = (body.id || '').toString();
       if (!id) return sendJson(res, 400, { error: 'id is required' });
-      const { error } = await supabase.from('notifications').update({ read: body.read !== false }).eq('id', id);
+      const { error } = await supabase.from('notifications').update({ read: body.read !== false }).eq('id', id).eq('workspace', ws);
       if (error) throw error;
       return sendJson(res, 200, { ok: true });
     }
 
     if (req.method === 'DELETE') {
       if (req.query?.all === 'true') {
-        const { error } = await supabase.from('notifications').delete().neq('id', IMPOSSIBLE_ID);
+        const { error } = await supabase.from('notifications').delete().eq('workspace', ws).neq('id', IMPOSSIBLE_ID);
         if (error) throw error;
         return sendJson(res, 200, { ok: true });
       }
       const id = (req.query?.id || '').toString();
       if (!id) return sendJson(res, 400, { error: 'id is required' });
-      const { error } = await supabase.from('notifications').delete().eq('id', id);
+      const { error } = await supabase.from('notifications').delete().eq('id', id).eq('workspace', ws);
       if (error) throw error;
       return sendJson(res, 200, { ok: true });
     }

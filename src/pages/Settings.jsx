@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { APP_VERSION, useSettings, setSetting } from '../lib/settings.js';
+import { useWorkspace, clearWorkspace } from '../lib/session.js';
 import { api } from '../lib/api.js';
 
 function Toggle({ on, onClick }) {
@@ -12,6 +13,7 @@ function Toggle({ on, onClick }) {
 
 export default function Settings() {
   const settings = useSettings();
+  const ws = useWorkspace();
   const [debugOut, setDebugOut] = useState(null);
   const [testing, setTesting] = useState(false);
 
@@ -41,6 +43,18 @@ export default function Settings() {
       <div className="page-head">
         <div className="page-kicker">Preferences</div>
         <h1 className="page-title">Settings</h1>
+      </div>
+
+      <div className="card settings-section">
+        <h2>Access</h2>
+        <p className="sec-sub">You're signed in with a testing access code. Each code keeps its own separate data.</p>
+        <div className="setting-row">
+          <div>
+            <div className="s-label">Workspace</div>
+            <div className="s-desc">{ws?.label ? ws.label : 'Active'} · code <span className="mono">{ws?.code || '—'}</span></div>
+          </div>
+          <button className="btn btn-sm btn-ghost" onClick={() => { if (window.confirm('Sign out of this access code on this device?')) clearWorkspace(); }}>Sign out</button>
+        </div>
       </div>
 
       <div className="card settings-section">

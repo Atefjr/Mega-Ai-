@@ -1,14 +1,16 @@
-import { getSupabase, sendJson, sendError } from './_lib.js';
+import { getSupabase, sendJson, sendError, getWorkspace } from './_lib.js';
 
 const LIST_COLS = 'id, ticker, amount_invested, avg_cost, shares, purchased_at, status_label, status_rationale, status_conviction, status_signals, status_updated_at, is_paper, thesis_id, thesis:theses(id, name, icon)';
 
 export default async function handler(req, res) {
   try {
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
       // ?paper=true | false ; omit for all
-      let query = supabase.from('trades').select(LIST_COLS).order('created_at', { ascending: true });
+      let query = supabase.from('trades').select(LIST_COLS).eq('workspace', ws).order('created_at', { ascending: true });
       const paper = req.query?.paper;
       if (paper === 'true') query = query.eq('is_paper', true);
       else if (paper === 'false') query = query.eq('is_paper', false);
@@ -33,7 +35,7 @@ export default async function handler(req, res) {
       const selectCols = 'id, ticker, amount_invested, avg_cost, shares, purchased_at, is_paper, thesis_id, thesis:theses(id, name, icon)';
 
       // Fold into an existing OPEN position of the same ticker + thesis + paper/live bucket.
-      let existQuery = supabase.from('trades').select('id, amount_invested, avg_cost').eq('ticker', ticker).eq('is_paper', isPaper);
+      let existQuery = supabase.from('trades').select('id, amount_invested, avg_cost').eq('workspace', ws).eq('ticker', ticker).eq('is_paper', isPaper);
       existQuery = thesisId ? existQuery.eq('thesis_id', thesisId) : existQuery.is('thesis_id', null);
       const { data: existRows, error: existErr } = await existQuery.order('created_at', { ascending: true }).limit(1);
       if (existErr) throw existErr;
@@ -56,7 +58,7 @@ export default async function handler(req, res) {
         return sendJson(res, 200, { trade: data, merged: true });
       }
 
-      const insert = { ticker, amount_invested: amount, avg_cost: avgCost, thesis_id: thesisId, is_paper: isPaper };
+      const insert = { ticker, amount_invested: amount, avg_cost: avgCost, thesis_id: thesisId, is_paper: isPaper, workspace: ws };
       if (purchasedAt) insert.purchased_at = purchasedAt;
 
       const { data, error } = await supabase.from('trades').insert(insert).select(selectCols).single();

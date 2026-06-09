@@ -8,9 +8,17 @@ import Settings from './pages/Settings.jsx';
 import Notifications from './pages/Notifications.jsx';
 import Logo from './components/Logo.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
+import CodeLogin from './components/CodeLogin.jsx';
 import { APP_NAME, APP_VERSION } from './lib/settings.js';
+import { useWorkspace } from './lib/session.js';
 
 export default function App() {
+  const ws = useWorkspace();
+
+  if (!ws || !ws.code) {
+    return <CodeLogin />;
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -46,7 +54,7 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="app-footer">{APP_NAME} · v{APP_VERSION}</footer>
+      <footer className="app-footer">{APP_NAME} · v{APP_VERSION}{ws.label ? ` · ${ws.label}` : ''}</footer>
     </div>
   );
 }

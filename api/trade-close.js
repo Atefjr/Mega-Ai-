@@ -1,4 +1,4 @@
-import { getSupabase, getQuote, sendJson, sendError } from './_lib.js';
+import { getSupabase, getQuote, sendJson, sendError, getWorkspace } from './_lib.js';
 
 export default async function handler(req, res) {
   try {
@@ -6,6 +6,8 @@ export default async function handler(req, res) {
       res.setHeader('Allow', 'POST');
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const supabase = getSupabase();
     const id = (req.body?.id || '').toString().trim();
     if (!id) return sendJson(res, 400, { error: 'id is required' });
@@ -15,6 +17,7 @@ export default async function handler(req, res) {
       .from('trades')
       .select('id, ticker, amount_invested, avg_cost, purchased_at, is_paper, thesis_id, thesis:theses(name)')
       .eq('id', id)
+      .eq('workspace', ws)
       .single();
     if (loadErr) throw loadErr;
     if (!trade) return sendJson(res, 404, { error: 'Trade not found' });
@@ -51,6 +54,7 @@ export default async function handler(req, res) {
       performance_pct: performancePct,
       purchased_at: trade.purchased_at,
       is_paper: !!trade.is_paper,
+      workspace: ws,
     };
 
     const { data: inserted, error: insErr } = await supabase

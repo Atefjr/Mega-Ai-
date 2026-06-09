@@ -1,10 +1,12 @@
-import { getSupabase, sendJson, sendError } from './_lib.js';
+import { getSupabase, sendJson, sendError, getWorkspace } from './_lib.js';
 import { analyzeStock } from './_ai.js';
 
 const FRESH_MS = 24 * 60 * 60 * 1000; // serve cached analysis for a day
 
 export default async function handler(req, res) {
   try {
+    const ws = getWorkspace(req);
+    if (!ws) return sendJson(res, 401, { error: 'Missing access code' });
     const supabase = getSupabase();
 
     if (req.method === 'GET') {

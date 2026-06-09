@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const supabase = getSupabase();
     const { data: trades, error } = await supabase
       .from('trades')
-      .select('id, ticker, avg_cost, status_label, thesis_id, thesis:theses(name, description, cautious_criteria, break_criteria)');
+      .select('id, ticker, avg_cost, status_label, workspace, thesis_id, thesis:theses(name, description, cautious_criteria, break_criteria)');
     if (error) throw error;
 
     const open = trades || [];
@@ -73,6 +73,7 @@ export default async function handler(req, res) {
             thesis_id: trade.thesis_id,
             thesis_name: trade.thesis?.name || null,
             meta: { from: prevLabel, to: label, conviction },
+            workspace: trade.workspace || '',
           });
         }
         statusUpdated += 1;

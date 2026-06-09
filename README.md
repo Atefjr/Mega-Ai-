@@ -64,7 +64,8 @@ npm install
      schema — instead run the migration files in order for whatever you're missing:
      `supabase/migration_slice3.sql` (thesis criteria, conviction, analysis cache)
      and `supabase/migration_slice4.sql` (paper trades, candidate conviction, the
-     notifications table). Both are safe to re-run.
+     notifications table), then `supabase/migration_slice5.sql` (access-code
+     workspaces for multi-tester isolation). All are safe to re-run.
 3. (Optional) run `supabase/seed.sql` to populate sample theses + an NVDA position
    so the dashboard isn't empty on first load.
 4. In **Project Settings → API**, copy the **Project URL** and the
@@ -181,3 +182,29 @@ supabase/
 - Optional: a hard per-day call cap in the app (in addition to the console spend
   limit), and automated halal screening (provider API or computed ratios) to fill
   `ticker_meta.halal_status` instead of setting it by hand.
+
+## Testing with multiple people (access codes)
+
+The app is gated by a private **access code** (Slice 5). Each code is its own
+isolated workspace — separate theses, trades, history, notifications, and halal
+settings. There are no passwords; this is meant for a handful of trusted testers,
+not public use. Whoever has a code can see that code's data, so treat codes as
+shared secrets and hand them out individually.
+
+**Add or change testers** in Supabase SQL Editor:
+
+```sql
+insert into workspaces (code, label) values
+  ('some-long-private-code', 'Friend A')
+on conflict (code) do nothing;
+```
+
+Pick long, hard-to-guess codes. To revoke someone, delete their row
+(`delete from workspaces where code = '...';`) — their data stays in the tables
+but becomes unreachable. The seed migration adds a few example codes (`atef-main`,
+`tester-one`, `tester-two`) — change these.
+
+Testers open the site, enter their code once (stored on their device), and can
+sign out from **Settings → Access**. The daily cron updates every workspace; the
+stock **analysis cache is shared** across workspaces on purpose (it's public
+market data, and sharing it keeps AI cost down).
