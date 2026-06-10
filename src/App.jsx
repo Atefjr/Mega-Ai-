@@ -6,6 +6,7 @@ import History from './pages/History.jsx';
 import Analyze from './pages/Analyze.jsx';
 import Settings from './pages/Settings.jsx';
 import Notifications from './pages/Notifications.jsx';
+import Library from './pages/Library.jsx';
 import Logo from './components/Logo.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
 import CodeLogin from './components/CodeLogin.jsx';
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/paper" element={<LiveTrades paper />} />
           <Route path="/research" element={<Research />} />
           <Route path="/research/:id" element={<ResearchThesis />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/analyze" element={<Analyze />} />
           <Route path="/history" element={<History />} />
           <Route path="/settings" element={<Settings />} />

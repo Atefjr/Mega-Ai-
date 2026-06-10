@@ -58,7 +58,27 @@ export default async function handler(req, res) {
       return sendJson(res, 200, { thesis: data });
     }
 
-    res.setHeader('Allow', 'GET, POST, PATCH');
+    if (req.method === 'DELETE') {
+      const id = (req.query?.id || (req.body && req.body.id) || '').toString();
+      if (!id) return sendJson(res, 400, { error: 'id is required' });
+      // confirm the thesis belongs to this workspace
+      const { data: th, error: thErr } = await supabase
+        .from('theses')
+        .select('id')
+        .eq('id', id)
+        .eq('workspace', ws)
+        .maybeSingle();
+      if (thErr) throw thErr;
+      if (!th) return sendJson(res, 404, { error: 'Thesis not found' });
+      // detach open positions (they keep living without a thesis), drop its suggestions, then delete
+      await supabase.from('trades').update({ thesis_id: null }).eq('thesis_id', id);
+      await supabase.from('suggested_tickers').delete().eq('thesis_id', id);
+      const { error } = await supabase.from('theses').delete().eq('id', id).eq('workspace', ws);
+      if (error) throw error;
+      return sendJson(res, 200, { deleted: true });
+    }
+
+    res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
     return sendJson(res, 405, { error: 'Method not allowed' });
   } catch (err) {
     return sendError(res, err);

@@ -40,6 +40,7 @@ export const api = {
   getTheses: () => request('/api/theses'),
   createThesis: (payload) => request('/api/theses', { method: 'POST', body: JSON.stringify(payload) }),
   updateThesis: (payload) => request('/api/theses', { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteThesis: (id) => request(`/api/theses?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   getHistory: () => request('/api/history'),
   updateHistory: (payload) => request('/api/history', { method: 'PATCH', body: JSON.stringify(payload) }),

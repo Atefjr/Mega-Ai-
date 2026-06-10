@@ -63,7 +63,10 @@ export default function Research() {
           <h1 className="page-title">Research</h1>
           <p className="page-sub">Each thesis groups the tickers you hold and the ones AI suggests. Open one to research new fits.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ New thesis</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn" onClick={() => navigate('/library')}>📚 Library</button>
+          <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ New thesis</button>
+        </div>
       </div>
 
       <ErrorBanner error={error} />
@@ -72,8 +75,11 @@ export default function Research() {
         <Skeletons count={3} className="grid grid-theses" />
       ) : theses.length === 0 ? (
         <Empty icon="✺" title="No theses yet">
-          <p>Create your first investment thesis to start grouping tickers around an idea.</p>
-          <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ New thesis</button>
+          <p>Create your first investment thesis, or pick ready-made ideas from the library.</p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button className="btn" onClick={() => navigate('/library')}>📚 Browse library</button>
+            <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ New thesis</button>
+          </div>
         </Empty>
       ) : (
         <div className="grid grid-theses">

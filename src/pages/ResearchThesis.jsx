@@ -74,6 +74,22 @@ export default function ResearchThesis() {
   const [modalInitial, setModalInitial] = useState({});
   const [investPaper, setInvestPaper] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    const ok = window.confirm(
+      `Delete the "${thesis?.name}" thesis?\n\nYour open positions under it are kept (they just lose the thesis link), but its AI suggestions are removed. If it came from the Library you can re-add it there anytime.`
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await api.deleteThesis(id);
+      navigate('/research');
+    } catch (e) {
+      setError(e);
+      setDeleting(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setError(null);
@@ -225,7 +241,12 @@ export default function ResearchThesis() {
             <h1 className="page-title">{thesis.name}</h1>
           </div>
         </div>
-        <button className="btn btn-sm" onClick={() => setEditOpen(true)}>✎ Edit</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-sm" onClick={() => setEditOpen(true)}>✎ Edit</button>
+          <button className="btn btn-sm btn-danger" disabled={deleting} onClick={handleDelete}>
+            {deleting ? <span className="spinner" style={{ borderTopColor: 'var(--red)' }} /> : '🗑 Delete'}
+          </button>
+        </div>
       </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 18 }}>
